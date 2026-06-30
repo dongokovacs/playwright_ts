@@ -23,8 +23,10 @@ export type FormData = {
   confirmPassword: string;
 };
 
-// POM for the QA Playground "Forms" page — has enough interdependent fields
-// and reuse across tests to be worth it (most other pages here don't).
+// POM for the QA Playground "Forms" page — locators plus one atomic action
+// per field. The multi-step "fill the whole form and submit" business flow
+// lives in flows/forms.flow.ts instead of here; see ARCHITECTURE.md for why
+// that's a separate layer.
 //
 // resolveCountryTrigger() below deliberately points its primary selector at
 // a test-id that doesn't exist, so the fallback in HealingLocator actually
@@ -65,23 +67,6 @@ export class FormsPage {
 
   async goto(): Promise<void> {
     await this.page.goto('forms');
-  }
-
-  async fill(data: FormData): Promise<void> {
-    await this.fillFirstName(data.firstName);
-    await this.fillLastName(data.lastName);
-    await this.fillEmail(data.email);
-    await this.fillPhone(data.phone);
-    await this.fillDob(data.dob);
-    await this.selectGender(data.gender);
-    await this.selectCountry(data.country);
-    await this.fillCity(data.city);
-
-    for (const interest of data.interests ?? []) {
-      await this.toggleInterest(interest);
-    }
-    await this.fillPassword(data.password);
-    await this.fillConfirmPassword(data.confirmPassword);
   }
 
   async fillFirstName(value: string): Promise<void> {

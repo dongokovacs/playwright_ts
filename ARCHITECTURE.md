@@ -18,13 +18,14 @@ src/
   core/       framework-internal building blocks (logger, healing locator)
   expects/    custom expect matchers
   fixtures/   Playwright fixture composition (the only place tests import from)
-  pages/      Page Objects, only where the UI flow justifies one
+  flows/      named business use cases, composed from Page Objects (+ API clients where relevant)
+  pages/      Page Objects — one per page used in tests/
   utils/      test data builders
 ```
 
 Tests import from `src/fixtures` for `test`/`expect`, and from `src/utils` or `src/api/schemas` for data builders and types. They don't reach into `request-handler.ts` or `core/*` directly — that's the whole point of having fixtures.
 
-There are two separate fixture chains, not one merged into the other: `index.ts` (API client + worker-scoped auth, used by `tests/api` and `tests/hybrid`) and `page.fixtures.ts` (Page Objects, used by `tests/ui`). UI tests don't need a Conduit auth token, so there's no reason to drag that fixture chain into a suite that never touches Conduit. `formsPage` is built the same way as `articlesApi` etc. — `base.extend` handing back a `new FormsPage(page)` — just in its own file instead of bolted onto the API one.
+There are two separate fixture chains, not one merged into the other: `index.ts` (API client + worker-scoped auth, used by `tests/api` and `tests/hybrid`) and `page.fixtures.ts` (Page Objects for pages that don't need Conduit auth, used by `tests/ui`). `tests/hybrid` needs both an API client and a UI Page Object in the same test, so `articlePage` (wrapping `ConduitArticlePage`) lives on the `index.ts` chain instead — it's a normal test-scoped fixture there, same shape as `articlesApi`, just resolving to a Page Object instead of an API client. `tests/api` never requests `articlePage`, so it's never instantiated there; Playwright fixtures are lazy, unused ones cost nothing.
 
 Expected page copy (error text, success messages, dialog text) lives in `fixtures/strings.ts`, not inline in the assertions. A real copy change on the site then breaks one file instead of sending you grepping through every spec that happens to assert on that string.
 
@@ -81,11 +82,27 @@ Two things actually use it:
 
 I'm calling this out specifically because I reviewed a similar-purpose repo where the hybrid and HAR-replay tests — the most interesting ones in the whole suite — were all `test.skip`'d on main. Whatever this repo claims runs, runs, in CI, on every push.
 
-### Page Objects only where they earn it
+### Every page gets a Page Object
 
-`FormsPage` exists because that form has a lot of interdependent fields reused across four tests. `alerts-dialogs.spec.ts` doesn't get one — each scenario is one independent interaction, and wrapping `page.getByRole('button', { name: 'Simple Alert' }).click()` in a class would just be ceremony. Don't build the abstraction before the code needs it.
+This used to be "only where it earns it" — `alerts-dialogs.spec.ts` started out with no Page Object, each scenario being a single independent interaction, on the theory that wrapping `page.getByRole('button', { name: 'Simple Alert' }).click()` in a class is ceremony without payoff.
 
-`FormsPage`'s locators are `readonly Locator` fields set once in the constructor, not re-queried inline in every method — the standard Playwright POM shape. Locators are lazy (they don't touch the DOM until you act on them), so building them upfront in the constructor is safe and isn't the stale-element problem it would be in Selenium.
+That theory had a real cost: with some pages covered and others not, there's no reliable way to tell "raw `page.locator()` here is fine, there's genuinely no Page Object for this page" from "raw `page.locator()` here is a bypass of a Page Object that already exists" — both look identical in a diff. That ambiguity is exactly what let `forms.spec.ts` quietly reach around `FormsPage` for two fields (caught in review, not by anything structural). So now every page used in `tests/` — `FormsPage`, `AlertsDialogsPage`, `ConduitArticlePage` — has one, and `eslint.config.js` has a `no-restricted-syntax` rule flagging any `page.locator()` call inside `tests/**`. The rule can't tell _why_ a locator call is wrong, but it doesn't need to: there's no longer a legitimate reason for one to exist in a spec file at all.
+
+Locators are `readonly Locator` fields set once in the constructor, not re-queried inline in every method — the standard Playwright POM shape. Locators are lazy (they don't touch the DOM until you act on them), so building them upfront in the constructor is safe and isn't the stale-element problem it would be in Selenium.
+
+`ConduitArticlePage`'s `.article-content` is a CSS class selector, not a test-id — Conduit is a real third-party app with no `data-testid` attributes, so a class selector is the only option there. Same story for `AlertsDialogsPage`'s `[data-sonner-toast]` and `[role="dialog"]` — third-party toast/dialog libraries that don't expose test-ids either.
+
+### Page Objects vs. Flows
+
+A Page Object only knows about one page: its locators and the single-step actions you can take on it (`fillEmail`, `click submit`). It doesn't know what a "valid form submission" is, or that creating an article through the API and then viewing it is a thing someone would want to do — that's a business use case, one level up, and it lives in `src/flows/` instead.
+
+Concretely: `FormsPage.fillEmail()` is a page-level action. `FormsFlow.submitValidForm(data)` — fill every field, accept terms, submit — is a flow: a named, reusable use case built out of several page-level actions. The split matters once a page is reused for more than one purpose. `forms.spec.ts`'s three negative tests (empty submit, mismatched passwords, bad email) deliberately _don't_ go through `FormsFlow` — they're testing what happens when you don't follow the happy path, so they call `FormsPage` methods directly. If `fillEmail` had stayed buried inside one big `fill()` method, there'd be no way to do that without duplicating most of the form-filling logic.
+
+`ConduitArticleFlow` is the same idea across two layers, not one: `publishAndView()` creates an article through the API and navigates to it in the UI — the actual repeated pattern in both hybrid tests — while the assertions stay in the test itself rather than inside the flow. A flow doing the _actions_ and the test doing the _checks_ keeps a failing assertion pointing at the test that has it, not at a shared method three files away.
+
+`AlertsDialogsFlow` started from "does this page even need a flow layer, every scenario there is one click" — and turned into the most useful one once dialog-handling was a genuine source of duplication. Before this layer existed, every alert test repeated the same `page.once('dialog', ...)` + `expect.poll()` boilerplate; now it's written once.
+
+Worth noting because it cost real debugging time: `page.waitForEvent('dialog')` looked like the cleaner way to write this and doesn't work here. A native dialog blocks the page synchronously, so the click that opens it can't resolve until the dialog is handled — and with `waitForEvent`, nothing handles it until _after_ the click's promise has already settled. That's a deadlock, and it hangs for the full test timeout instead of failing fast. The fix is to call `dialog.accept()`/`dialog.dismiss()` _inside_ the `page.once('dialog', ...)` callback itself, same as the original tests did — the handler firing doesn't depend on the click having resolved, so accepting from inside it breaks the deadlock. `expect.poll()` in the original code existed for exactly this reason: the click can resolve before the async handler finishes, so anything reading the result needs to either poll or, in the flow methods now, be wrapped in its own `Promise` that the handler resolves once it's actually done.
 
 ## CI/CD
 

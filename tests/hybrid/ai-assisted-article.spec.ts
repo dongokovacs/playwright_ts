@@ -13,8 +13,9 @@ const aiProvider = createOpenRouterProviderFromEnv();
 // the test itself still runs and reports either way.
 test.describe('Hybrid + AI: AI-drafted article lifecycle', () => {
   test('AI-drafted (or faker-fallback) article renders correctly and matches its intended topic', async ({
-    page,
     articlesApi,
+    articlePage,
+    articleFlow,
   }) => {
     const topic =
       'a short, upbeat article about why Playwright is great for end-to-end test automation';
@@ -30,20 +31,16 @@ test.describe('Hybrid + AI: AI-drafted article lifecycle', () => {
         )
       : buildArticlePayload();
 
-    const created = await articlesApi.create(draft);
-    const slug = created.article.slug;
-
-    await page.goto(`article/${slug}`);
-    await expect(page.getByRole('heading', { level: 1, name: draft.title })).toBeVisible();
+    const slug = await articleFlow.publishAndView(draft);
+    await expect(articlePage.heading(draft.title)).toBeVisible();
 
     console.log(draft);
 
     if (aiProvider) {
       // Wait for the body text itself, not just the heading, or this races
       // the SPA's content fetch.
-      const articleContent = page.locator('.article-content');
-      await expect(articleContent).toContainText(draft.body.slice(0, 25));
-      const renderedBody = await articleContent.innerText();
+      await expect(articlePage.content).toContainText(draft.body.slice(0, 25));
+      const renderedBody = await articlePage.content.innerText();
       const semanticCheck = await assertSemanticMatch(aiProvider, renderedBody, topic);
       expect(semanticCheck.pass, semanticCheck.reasoning).toBeTruthy();
     } else {

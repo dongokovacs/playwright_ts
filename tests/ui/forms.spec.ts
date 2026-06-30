@@ -8,13 +8,11 @@ test.describe('Forms practice page', () => {
   test('submits successfully with valid data, including a healed locator @smoke', async ({
     page,
     formsPage,
+    formsFlow,
   }) => {
     const data = buildFormData();
-    await formsPage.goto();
 
-    await formsPage.fill(data);
-    await formsPage.acceptTerms();
-    await formsPage.submit();
+    await formsFlow.submitValidForm(data);
 
     await expect(formsPage.successMessage()).toBeVisible();
     await expect(

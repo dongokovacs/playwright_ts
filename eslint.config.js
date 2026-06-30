@@ -38,4 +38,22 @@ module.exports = tseslint.config(
       'no-empty-pattern': 'off',
     },
   },
+  {
+    // Every page used in tests/ has a Page Object now (forms.page.ts,
+    // alerts-dialogs.page.ts, conduit-article.page.ts). page.locator() in a
+    // spec file means either bypassing one that exists, or a new page that
+    // showed up without one — both are worth a second look, not a silent
+    // pass.
+    files: ['tests/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'warn',
+        {
+          selector: "CallExpression[callee.property.name='locator']",
+          message:
+            'page.locator() in a spec file — use a Page Object method instead. If no Page Object exists for this page yet, add one rather than reaching for a raw locator here.',
+        },
+      ],
+    },
+  },
 );
