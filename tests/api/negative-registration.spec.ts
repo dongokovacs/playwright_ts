@@ -22,7 +22,7 @@ const usernameBoundaryCases: UsernameBoundaryCase[] = [
   },
 ];
 
-test.describe('Negative API tests — username length validation', () => {
+test.describe('Negative API tests — username length validation @negative', () => {
   usernameBoundaryCases.forEach(({ description, length, expectedError }) => {
     test(`registration with username ${description}`, async ({ usersApi }) => {
       const username = faker.string.alphanumeric({ length, casing: 'lower' });
