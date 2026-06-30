@@ -3,6 +3,7 @@ import { isDeepStrictEqual } from 'node:util';
 import type { ZodType } from 'zod';
 import type { AxeResults } from 'axe-core';
 import type { APILogger } from '../core/logger';
+import type { WebVitalsMetrics } from '../core/web-vitals';
 
 let activeLogger: APILogger | undefined;
 
@@ -79,6 +80,34 @@ export const expect = baseExpect.extend({
 
     return { pass, message };
   },
+
+  // Only checks metrics that were actually measured. INP needs a real user
+  // interaction to report at all, and CLS only finalizes on a visibility
+  // change — a budget-only test that just loads a page won't always have
+  // either, and that's "not measured here", not a failure.
+  shouldMeetWebVitalsBudget(received: WebVitalsMetrics, budget: Partial<WebVitalsMetrics>) {
+    const overBudget = (Object.entries(budget) as [keyof WebVitalsMetrics, number][]).filter(
+      ([metric, limit]) => {
+        const value = received[metric];
+        return value !== undefined && value > limit;
+      },
+    );
+    const pass = overBudget.length === 0;
+
+    const message = pass
+      ? () => 'expected at least one web vital to be over budget, but none were'
+      : () =>
+          [
+            'Web vitals exceeded budget:',
+            ...overBudget.map(
+              ([metric, limit]) => `- ${metric}: ${received[metric]} (budget: ${limit})`,
+            ),
+            '',
+            `All collected metrics: ${JSON.stringify(received)}`,
+          ].join('\n');
+
+    return { pass, message };
+  },
 });
 
 declare module '@playwright/test' {
@@ -86,5 +115,6 @@ declare module '@playwright/test' {
     shouldMatchSchema(schema: ZodType): R;
     shouldEqual(expected: T): R;
     shouldHaveNoA11yViolations(knownIssues?: string[]): R;
+    shouldMeetWebVitalsBudget(budget: Partial<WebVitalsMetrics>): R;
   }
 }

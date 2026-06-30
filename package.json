@@ -17,6 +17,7 @@
     "test:hybrid": "playwright test --project=hybrid",
     "test:smoke": "playwright test --grep @smoke",
     "test:a11y": "playwright test --grep @a11y",
+    "test:perf": "playwright test --grep @perf",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -53,6 +54,7 @@
   "dependencies": {
     "@faker-js/faker": "^10.5.0",
     "dotenv": "^17.4.2",
+    "web-vitals": "^5.3.0",
     "zod": "^4.4.3"
   }
 }
