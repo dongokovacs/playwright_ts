@@ -17,18 +17,12 @@ export type FormData = {
   confirmPassword: string;
 };
 
-/**
- * Page Object for the QA Playground "Forms" practice page — justified here
- * because the flow has many interdependent fields and is reused across both
- * the happy-path and validation test cases.
- *
- * The country selector intentionally goes through HealingLocator: its
- * primary strategy targets a renamed data-testid ("select-country-field")
- * that doesn't exist on the live page, to demonstrate the fallback path
- * actually kicking in and resolving to the real trigger button. See
- * ARCHITECTURE.md for why this is a deliberate demo rather than a flaky
- * selector left in by accident.
- */
+// POM for the QA Playground "Forms" page — has enough interdependent fields
+// and reuse across tests to be worth it (most other pages here don't).
+//
+// resolveCountryTrigger() below deliberately points its primary selector at
+// a test-id that doesn't exist, so the fallback in HealingLocator actually
+// has to do something. Not a bug — see ARCHITECTURE.md.
 export class FormsPage {
   constructor(private readonly page: Page) {}
 

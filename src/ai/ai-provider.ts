@@ -1,7 +1,6 @@
 /**
- * Everything in src/ai/ talks to this interface, never to a provider SDK
- * directly (Dependency Inversion). Swapping providers later only means
- * writing one new class here — no test or fixture changes required.
+ * Everything in src/ai/ goes through this, never a provider SDK directly.
+ * Swapping providers later means writing one new class, not touching tests.
  */
 export interface AIProvider {
   generateText(prompt: string): Promise<string>;

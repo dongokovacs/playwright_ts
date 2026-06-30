@@ -12,14 +12,11 @@ export type HealEvent = {
 };
 
 /**
- * Wraps an ordered list of locator strategies for the same logical element.
- * The first strategy is the "intended" selector; the rest are fallbacks that
- * only get tried if the previous one fails to become visible in time.
+ * Tries a list of locator strategies in order for the same element. First
+ * one that resolves in time wins; if it's not the first strategy, that gets
+ * logged so you can see what actually healed (see getHealLog()).
  *
- * This is a deliberately simple, deterministic heuristic healer (no AI call,
- * no DOM-wide search) — fast, free, and the healing reason is always
- * inspectable via getHealLog(). See ARCHITECTURE.md for why this approach
- * was chosen over an LLM-based healer.
+ * No AI here, on purpose — see ARCHITECTURE.md for the reasoning.
  */
 export class HealingLocator {
   private readonly healLog: HealEvent[] = [];

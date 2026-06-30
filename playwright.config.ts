@@ -3,7 +3,8 @@ import * as dotenv from 'dotenv';
 
 dotenv.config({ quiet: true });
 
-import { CONDUIT_API_URL, CONDUIT_UI_URL } from './src/config/env'; // imported after dotenv.config() so the env vars it reads are already loaded
+// after dotenv.config() — env.ts reads process.env at import time
+import { CONDUIT_API_URL, CONDUIT_UI_URL } from './src/config/env';
 
 const QA_PLAYGROUND_URL = 'https://qaplayground.com/practice/';
 

@@ -1,12 +1,9 @@
 import type { ZodType, z } from 'zod';
 import type { AIProvider } from './ai-provider';
 
-/**
- * Generates a single JSON object from a natural-language instruction and
- * validates it against the given Zod schema before returning. Zod stays the
- * single source of truth for shape/type — if the model returns something
- * that doesn't fit, this throws instead of silently handing back bad data.
- */
+// Turns a plain-English instruction into a JSON object and validates it
+// against the schema before returning. If the model returns garbage, this
+// throws instead of passing it along.
 export async function generateTestData<TSchema extends ZodType>(
   provider: AIProvider,
   schema: TSchema,

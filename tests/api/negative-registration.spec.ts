@@ -26,11 +26,9 @@ test.describe('Negative API tests — username length validation', () => {
   usernameBoundaryCases.forEach(({ description, length, expectedError }) => {
     test(`registration with username ${description}`, async ({ usersApi }) => {
       const username = faker.string.alphanumeric({ length, casing: 'lower' });
-      // Deliberately invalid email so the request always fails with 422
-      // regardless of whether the username itself is valid — this lets us
-      // isolate and assert purely on the presence/content of the
-      // username-specific error, the same way the negative-test DDT
-      // pattern is used for any single-field boundary check.
+      // Bad email on purpose, so the request always 422s regardless of
+      // whether the username is valid — lets us check the username error
+      // in isolation.
       const invalidEmail = 'not-an-email-format';
 
       const response = await usersApi.registerExpectingError<{ errors: Record<string, string[]> }>(

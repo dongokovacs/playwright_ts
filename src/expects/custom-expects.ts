@@ -5,11 +5,8 @@ import type { APILogger } from '../core/logger';
 
 let activeLogger: APILogger | undefined;
 
-/**
- * Called once per test (from the api fixture) so the matchers below can
- * attach the last N request/response pairs to a failure message without
- * every test having to pass the logger in manually.
- */
+// Set once per test from the api fixture, so the matchers below can attach
+// recent request/response logs without every test wiring it through manually.
 export function setActiveLogger(logger: APILogger): void {
   activeLogger = logger;
 }
@@ -41,7 +38,8 @@ export const expect = baseExpect.extend({
   },
 
   shouldEqual(received: unknown, expected: unknown) {
-    //not just primitives the isDeepStrictEqual
+    // Playwright's matcher context doesn't expose this.equals, so this
+    // is the deep-equal fallback (see ARCHITECTURE.md).
     const pass = isDeepStrictEqual(received, expected);
 
     const message = pass

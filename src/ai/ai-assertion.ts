@@ -6,15 +6,10 @@ export type SemanticMatchResult = {
 };
 
 /**
- * Use this for assertions where the exact wording of UI/API text is
- * non-deterministic (varies by locale, A/B copy test, or LLM-generated
- * content) but the *meaning* must hold — e.g. "this is some flavor of an
- * 'invalid email' error" rather than a brittle exact-string match.
- *
- * Deliberately not used for the deterministic Conduit/QA Playground error
- * messages elsewhere in this repo — those have stable, known text, so a
- * plain string assertion is faster, free, and more precise. This is the
- * tool for the cases a plain assertion can't handle.
+ * For when exact wording isn't fixed (locale, A/B copy, generated text) but
+ * the meaning still needs checking. Conduit/QA Playground's own error texts
+ * are stable, so those tests just use plain string assertions — this is
+ * only for cases where that wouldn't work.
  */
 export async function assertSemanticMatch(
   provider: AIProvider,

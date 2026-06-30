@@ -1,11 +1,7 @@
 #!/usr/bin/env node
-/**
- * Reads the Playwright JSON reporter output and writes a markdown summary of
- * any test that needed a retry to pass (flaky) straight to
- * $GITHUB_STEP_SUMMARY, so it shows up on the Actions run page without
- * fabricating a comment on an unrelated PR (this runs on a schedule, not a
- * PR event, so there usually isn't one).
- */
+// Finds tests that needed a retry to pass and writes them to
+// $GITHUB_STEP_SUMMARY. Runs on a schedule, not a PR, so there's no PR to
+// comment on — the run summary is the next best place to see this.
 const fs = require('node:fs');
 
 const resultsPath = process.argv[2] ?? 'test-results/results.json';

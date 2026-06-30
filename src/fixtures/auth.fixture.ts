@@ -9,12 +9,9 @@ type AuthWorkerFixtures = {
   authToken: string;
 };
 
-/**
- * Registers one throwaway Conduit user per worker (not per test). The token
- * is shared by every test that runs on this worker, so login only happens
- * once no matter how many tests/files the worker picks up — while workers
- * themselves still run fully in parallel, each with its own isolated user.
- */
+// One throwaway Conduit user per worker, not per test, so login only
+// happens once even if a worker runs ten test files. Workers still run in
+// parallel, each with its own user.
 export const test = base.extend<object, AuthWorkerFixtures>({
   authToken: [
     async ({}, use) => {

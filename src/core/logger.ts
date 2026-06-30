@@ -18,12 +18,9 @@ type LogEntry = RequestLogEntry | ResponseLogEntry;
 
 const MAX_ENTRIES = 10;
 
-/**
- * Ring buffer of the last N API request/response pairs for a single test.
- * Consumed by custom expect matchers so a failing assertion can show
- * exactly what the API said right before it, without manually wiring
- * console.log into every test.
- */
+// Keeps the last N request/response pairs for a test, so a failing
+// assertion can show what the API actually said instead of just "expected X
+// got Y". Used by the custom expect matchers.
 export class APILogger {
   private readonly recentLogs: LogEntry[] = [];
 
