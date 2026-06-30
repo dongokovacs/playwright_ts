@@ -24,7 +24,9 @@ src/
 
 Tests import from `src/fixtures` for `test`/`expect`, and from `src/utils` or `src/api/schemas` for data builders and types. They don't reach into `request-handler.ts` or `core/*` directly — that's the whole point of having fixtures.
 
-There are two separate fixture chains, not one merged into the other: `index.ts` (API client + worker-scoped auth, used by `tests/api` and `tests/hybrid`) and `page-fixtures.ts` (Page Objects, used by `tests/ui`). UI tests don't need a Conduit auth token, so there's no reason to drag that fixture chain into a suite that never touches Conduit. `formsPage` is built the same way as `articlesApi` etc. — `base.extend` handing back a `new FormsPage(page)` — just in its own file instead of bolted onto the API one.
+There are two separate fixture chains, not one merged into the other: `index.ts` (API client + worker-scoped auth, used by `tests/api` and `tests/hybrid`) and `page.fixtures.ts` (Page Objects, used by `tests/ui`). UI tests don't need a Conduit auth token, so there's no reason to drag that fixture chain into a suite that never touches Conduit. `formsPage` is built the same way as `articlesApi` etc. — `base.extend` handing back a `new FormsPage(page)` — just in its own file instead of bolted onto the API one.
+
+Expected page copy (error text, success messages, dialog text) lives in `fixtures/strings.ts`, not inline in the assertions. A real copy change on the site then breaks one file instead of sending you grepping through every spec that happens to assert on that string.
 
 ## Key decisions
 

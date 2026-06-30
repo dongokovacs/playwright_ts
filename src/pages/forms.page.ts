@@ -1,5 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { HealingLocator } from '../core/healing-locator';
+import { FormsPageText } from '../fixtures/strings';
 
 // Shorter than HealingLocator's default — the first strategy here is
 // guaranteed to miss (see the class comment below), so there's no point
@@ -57,7 +58,7 @@ export class FormsPage {
     this.confirmPasswordInput = page.getByTestId('input-confirm-password');
     this.termsCheckbox = page.getByTestId('checkbox-terms');
     this.submitButton = page.getByTestId('submit-form-btn');
-    this.successMessageText = page.getByText('Form Submitted Successfully!');
+    this.successMessageText = page.getByText(FormsPageText.successHeading);
     this.countryTrigger = page.getByTestId('select-country');
     this.countryTriggerStale = page.getByTestId('select-country-field');
   }
