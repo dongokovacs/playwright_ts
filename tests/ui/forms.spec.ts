@@ -2,10 +2,8 @@ import { expect, test } from '@playwright/test';
 import { FormsPage } from '../../src/pages/forms.page';
 
 test.describe('Forms practice page', () => {
-  // The healing here is the plain, deterministic fallback-locator strategy in
-  // src/core/healing-locator.ts — NOT an AI/LLM-based healer. No API call,
-  // no cost, no network round-trip; it just tries the next known selector
-  // in order. See ARCHITECTURE.md for why that tradeoff was chosen.
+  // "healed locator" = the fallback-selector logic in healing-locator.ts,
+  // not an LLM. See ARCHITECTURE.md if you're wondering why.
   test('submits successfully with valid data, including a healed locator @smoke', async ({
     page,
   }) => {

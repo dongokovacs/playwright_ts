@@ -2,13 +2,8 @@ import type { APIRequestContext, APIResponse } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 import { APILogger } from '../core/logger';
 
-/**
- * Fluent, chainable HTTP client used by every endpoint-specific client class.
- * Each request method (.getRequest/.postRequest/...) builds the URL from the
- * accumulated path/params, asserts the expected status, logs the exchange,
- * and resets its own per-call state (path/params/headers/body) so nothing
- * leaks into the next call on the same instance.
- */
+// Chainable HTTP client the endpoint clients build on. Each request method
+// resets path/params/headers/body afterward so state can't leak between calls.
 export class ApiClient {
   private requestPath = '';
   private queryParams: Record<string, string | number> = {};

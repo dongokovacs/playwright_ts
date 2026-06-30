@@ -7,17 +7,10 @@ import { buildArticlePayload } from '../../src/utils/data-factory';
 
 const aiProvider = createOpenRouterProviderFromEnv();
 
-/**
- * Demonstrates the full hybrid + AI flow: an LLM drafts article content,
- * the API creates it, the UI renders it, and (when a key is configured) an
- * LLM-based semantic assertion checks the rendered body actually matches
- * the intended topic — useful for content whose exact wording isn't fixed.
- *
- * This test never gets skipped: without OPENROUTER_API_KEY it falls back to a
- * faker-built draft and simply omits the semantic check, so the
- * deterministic API+UI assertions still run and report on every PR/CI run.
- * Only the bonus AI step is conditional on the secret being present.
- */
+// LLM drafts an article, API creates it, UI renders it, and if a key is
+// configured, a semantic assertion checks the rendered text matches what we
+// asked for. No key? Falls back to faker and skips just that last check —
+// the test itself still runs and reports either way.
 test.describe('Hybrid + AI: AI-drafted article lifecycle', () => {
   test('AI-drafted (or faker-fallback) article renders correctly and matches its intended topic', async ({
     page,
@@ -46,9 +39,8 @@ test.describe('Hybrid + AI: AI-drafted article lifecycle', () => {
     console.log(draft);
 
     if (aiProvider) {
-      // Wait for the real body to be painted (not just the heading/tag
-      // chips) before reading it back out, to avoid a race against the
-      // SPA's content fetch.
+      // Wait for the body text itself, not just the heading, or this races
+      // the SPA's content fetch.
       const articleContent = page.locator('.article-content');
       await expect(articleContent).toContainText(draft.body.slice(0, 25));
       const renderedBody = await articleContent.innerText();

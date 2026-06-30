@@ -46,11 +46,8 @@ export class OpenRouterProvider implements AIProvider {
   }
 }
 
-/**
- * Returns undefined (not a thrown error) when OPENROUTER_API_KEY is absent,
- * so call sites can skip AI-dependent tests with a clear reason instead of
- * failing the whole suite for contributors who haven't set up a key.
- */
+// Returns undefined instead of throwing when there's no key configured —
+// callers fall back to non-AI behavior instead of failing outright.
 export function createOpenRouterProviderFromEnv(): OpenRouterProvider | undefined {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return undefined;

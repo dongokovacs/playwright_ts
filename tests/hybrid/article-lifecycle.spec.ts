@@ -16,9 +16,8 @@ test.describe('Hybrid: article lifecycle (API write, UI read)', () => {
 
     await articlesApi.delete(slug);
 
-    // The SPA falls back to the home feed for an unknown slug rather than a
-    // dedicated 404 page, so the meaningful assertion is that the article's
-    // own title no longer renders anywhere on the page it used to own.
+    // No 404 page here — unknown slugs just fall back to the home feed. So
+    // we check the title is gone instead of checking for an error page.
     await page.goto(`article/${slug}`);
     await expect(page.getByRole('heading', { level: 1, name: payload.title })).toHaveCount(0);
   });
