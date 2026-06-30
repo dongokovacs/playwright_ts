@@ -1,6 +1,7 @@
 import { expect as baseExpect } from '@playwright/test';
 import { isDeepStrictEqual } from 'node:util';
 import type { ZodType } from 'zod';
+import type { AxeResults } from 'axe-core';
 import type { APILogger } from '../core/logger';
 
 let activeLogger: APILogger | undefined;
@@ -55,11 +56,35 @@ export const expect = baseExpect.extend({
 
     return { pass, message };
   },
+
+  // knownIssues lets a test acknowledge pre-existing violations on a
+  // third-party page we don't control (rule ID, e.g. "color-contrast")
+  // instead of either failing on day one or silently ignoring axe
+  // altogether. Anything not in the list still fails the test, so a new
+  // violation is still caught.
+  shouldHaveNoA11yViolations(received: AxeResults, knownIssues: string[] = []) {
+    const newViolations = received.violations.filter((v) => !knownIssues.includes(v.id));
+    const pass = newViolations.length === 0;
+
+    const message = pass
+      ? () => 'expected accessibility violations, but found none'
+      : () =>
+          [
+            `Found ${newViolations.length} accessibility violation(s) not in the known-issues baseline:`,
+            ...newViolations.map(
+              (v) =>
+                `- [${v.impact ?? 'unknown'}] ${v.id}: ${v.help} (${v.nodes.length} node(s)) — ${v.helpUrl}`,
+            ),
+          ].join('\n');
+
+    return { pass, message };
+  },
 });
 
 declare module '@playwright/test' {
   interface Matchers<R, T> {
     shouldMatchSchema(schema: ZodType): R;
     shouldEqual(expected: T): R;
+    shouldHaveNoA11yViolations(knownIssues?: string[]): R;
   }
 }

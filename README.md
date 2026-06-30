@@ -42,6 +42,7 @@ npm run test:smoke    # fast subset, same as the PR gate
 npm run test:api      # API suite against Conduit
 npm run test:ui       # UI suite against QA Playground
 npm run test:hybrid   # hybrid API+UI suite against Conduit
+npm run test:a11y     # accessibility checks (axe-core), grep @a11y
 npm test               # everything
 ```
 

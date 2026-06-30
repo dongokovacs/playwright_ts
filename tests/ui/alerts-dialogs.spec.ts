@@ -58,4 +58,16 @@ test.describe('Alerts & Dialogs practice page', () => {
     await alertsDialogsPage.closeSweetAlert();
     await expect(alertsDialogsPage.modal).toBeHidden();
   });
+
+  test('has no detectable accessibility violations @a11y', async ({ alertsDialogsPage, a11y }) => {
+    await alertsDialogsPage.goto();
+
+    const results = await a11y.analyze();
+
+    // QA Playground is a third-party demo site; pre-existing there, not
+    // something this suite can fix. Tracked as a known baseline so the test
+    // still catches anything new instead of being all-or-nothing.
+    const knownIssues = ['color-contrast'];
+    expect(results).shouldHaveNoA11yViolations(knownIssues);
+  });
 });
