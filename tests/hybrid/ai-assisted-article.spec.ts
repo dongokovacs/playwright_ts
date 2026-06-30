@@ -13,9 +13,9 @@ const aiProvider = createOpenRouterProviderFromEnv();
 // the test itself still runs and reports either way.
 test.describe('Hybrid + AI: AI-drafted article lifecycle', () => {
   test('AI-drafted (or faker-fallback) article renders correctly and matches its intended topic', async ({
-    articlesApi,
     articlePage,
     articleFlow,
+    createdArticles,
   }) => {
     const topic =
       'a short, upbeat article about why Playwright is great for end-to-end test automation';
@@ -32,6 +32,7 @@ test.describe('Hybrid + AI: AI-drafted article lifecycle', () => {
       : buildArticlePayload();
 
     const slug = await articleFlow.publishAndView(draft);
+    createdArticles.track(slug);
     await expect(articlePage.heading(draft.title)).toBeVisible();
 
     console.log(draft);
@@ -51,6 +52,6 @@ test.describe('Hybrid + AI: AI-drafted article lifecycle', () => {
       });
     }
 
-    await articlesApi.delete(slug);
+    // Deletion isn't under test here — the tracker fixture cleans this up.
   });
 });

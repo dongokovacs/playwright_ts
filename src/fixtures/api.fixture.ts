@@ -9,6 +9,11 @@ import { ConduitArticlePage } from '../pages/conduit-article.page';
 import { ConduitArticleFlow } from '../flows/conduit-article.flow';
 import { test as authTest } from './auth.fixture';
 
+export type CreatedArticlesTracker = {
+  track: (slug: string) => void;
+  untrack: (slug: string) => void;
+};
+
 type ApiFixtures = {
   apiLogger: APILogger;
   api: ApiClient;
@@ -19,6 +24,10 @@ type ApiFixtures = {
   // requests them, so they're never instantiated there).
   articlePage: ConduitArticlePage;
   articleFlow: ConduitArticleFlow;
+  // Safety-net cleanup for articles created in a test. Tests that aren't
+  // testing deletion itself just track(); tests that delete as part of the
+  // assertion should untrack() right after so teardown doesn't double-delete.
+  createdArticles: CreatedArticlesTracker;
 };
 
 export const test = authTest.extend<ApiFixtures>({
@@ -50,5 +59,19 @@ export const test = authTest.extend<ApiFixtures>({
 
   articleFlow: async ({ articlesApi, articlePage }, use) => {
     await use(new ConduitArticleFlow(articlesApi, articlePage));
+  },
+
+  createdArticles: async ({ articlesApi }, use) => {
+    const slugs = new Set<string>();
+    await use({
+      track: (slug: string) => slugs.add(slug),
+      untrack: (slug: string) => slugs.delete(slug),
+    });
+    for (const slug of slugs) {
+      // Best-effort: the test may have failed before reaching its own
+      // delete, or the article may genuinely still be there. Either way a
+      // cleanup failure shouldn't fail the test.
+      await articlesApi.delete(slug).catch(() => {});
+    }
   },
 });
