@@ -22,6 +22,7 @@ Mielőtt lezárod a javítást, nézd át a következő szempontok szerint:
 - [ ] **Egyedi eset vagy visszatérő minta?** — ha ugyanez a probléma máshol is előfordulhat a suite-ban, érdemes-e a fixet közös helperbe/fixture-be emelni egy egyedi patch helyett?
 - [ ] **Quarantine vs. azonnali fix** — ha a flaky teszt oka nem egyértelmű, a helyes válasz most a teszt explicit flaky-ként jelölése + jegy nyitása, nem egy találgatott fix?
 - [ ] **Sorrend-függetlenség** — a teszt önállóan/izoláltan futtatva is helyes marad, vagy csak megosztott state miatt "véletlenül jó" a jelenlegi futási sorrendben?
+- [ ] **Mély ÉS széles ellenőrzés** — a lint/typecheck/teszt zöld (mély), de átnézted-e _az egész kódbázist_ ugyanezzel a mintával (selector-stratégia konzisztens-e mindenhol, minden absztrakcióhoz van-e fixture/Page Object, nincs-e duplikált string/konstans, illeszkedik-e az új fájl/metódus neve a meglévő konvencióhoz)? Egy izolált fix zöld tesztje nem bizonyítja hogy a minta a repo többi részén is követve van.
 
 ## Self-review checklist — English
 
@@ -43,6 +44,7 @@ Before closing out a fix, review against these:
 - [ ] **One-off case or a recurring pattern?** — if the same issue could occur elsewhere in the suite, should the fix be promoted to a shared helper/fixture instead of a one-off patch?
 - [ ] **Quarantine vs. fix-now** — if the root cause of a flaky test isn't clear, is the right call here to mark it flaky explicitly and open a ticket, instead of shipping a guessed fix?
 - [ ] **Order independence** — does the test still pass when run in isolation / a different order, or is it only "correct" by accident of shared state?
+- [ ] **Depth AND breadth** — lint/typecheck/tests pass (depth), but did you check the _rest of the codebase_ against the same pattern (consistent selector strategy everywhere, a fixture/Page Object for every abstraction that needs one, no duplicated strings/constants, new file/method names matching existing conventions)? A green test on an isolated fix doesn't prove the pattern is followed elsewhere.
 
 ## Test plan / Tesztelési terv
 

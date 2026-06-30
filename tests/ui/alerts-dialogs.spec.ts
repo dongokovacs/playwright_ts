@@ -1,68 +1,61 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../../src/fixtures/page.fixtures';
 import { AlertsDialogsPageText } from '../../src/fixtures/strings';
 
 test.describe('Alerts & Dialogs practice page', () => {
-  test('accepts a simple browser alert and reads its message @smoke', async ({ page }) => {
-    await page.goto('alerts-dialogs');
+  test('accepts a simple browser alert and reads its message @smoke', async ({
+    alertsDialogsFlow,
+  }) => {
+    const message = await alertsDialogsFlow.triggerSimpleAlertAndCaptureMessage();
 
-    let alertMessage = '';
-    page.once('dialog', async (dialog) => {
-      alertMessage = dialog.message();
-      await dialog.accept();
-    });
-
-    await page.getByRole('button', { name: 'Simple Alert', exact: true }).click();
-    await expect.poll(() => alertMessage).toBe(AlertsDialogsPageText.simpleAlertMessage);
+    expect(message).toBe(AlertsDialogsPageText.simpleAlertMessage);
   });
 
-  test('accepting the confirm dialog records an Accepted result', async ({ page }) => {
-    await page.goto('alerts-dialogs');
+  test('accepting the confirm dialog records an Accepted result', async ({
+    alertsDialogsPage,
+    alertsDialogsFlow,
+  }) => {
+    await alertsDialogsFlow.respondToConfirm(true);
 
-    page.once('dialog', (dialog) => dialog.accept());
-    await page.getByRole('button', { name: 'Confirm Alert', exact: true }).click();
-
-    await expect(page.getByText(AlertsDialogsPageText.confirmAccepted)).toBeVisible();
+    await expect(alertsDialogsPage.confirmAcceptedResult).toBeVisible();
   });
 
-  test('dismissing the confirm dialog records a Dismissed result', async ({ page }) => {
-    await page.goto('alerts-dialogs');
+  test('dismissing the confirm dialog records a Dismissed result', async ({
+    alertsDialogsPage,
+    alertsDialogsFlow,
+  }) => {
+    await alertsDialogsFlow.respondToConfirm(false);
 
-    page.once('dialog', (dialog) => dialog.dismiss());
-    await page.getByRole('button', { name: 'Confirm Alert', exact: true }).click();
-
-    await expect(page.getByText(AlertsDialogsPageText.confirmDismissed)).toBeVisible();
+    await expect(alertsDialogsPage.confirmDismissedResult).toBeVisible();
   });
 
-  test('typed prompt input is captured after accepting', async ({ page }) => {
-    await page.goto('alerts-dialogs');
+  test('typed prompt input is captured after accepting', async ({
+    alertsDialogsPage,
+    alertsDialogsFlow,
+  }) => {
+    await alertsDialogsFlow.submitPrompt('healing-locator-demo');
 
-    page.once('dialog', (dialog) => dialog.accept('healing-locator-demo'));
-    await page.getByRole('button', { name: 'Prompt Alert', exact: true }).click();
-
-    await expect(
-      page.getByText(AlertsDialogsPageText.promptResult('healing-locator-demo')),
-    ).toBeVisible();
+    await expect(alertsDialogsPage.promptResult('healing-locator-demo')).toBeVisible();
   });
 
-  test('toast alert renders a [data-sonner-toast] element @smoke', async ({ page }) => {
-    await page.goto('alerts-dialogs');
+  test('toast alert renders a [data-sonner-toast] element @smoke', async ({
+    alertsDialogsPage,
+    alertsDialogsFlow,
+  }) => {
+    await alertsDialogsFlow.triggerToast();
 
-    await page.getByRole('button', { name: 'Toast Alert', exact: true }).click();
-
-    const toast = page.locator('[data-sonner-toast]');
-    await expect(toast).toBeVisible();
-    await expect(toast).toContainText(AlertsDialogsPageText.toastMessage);
+    await expect(alertsDialogsPage.toast).toBeVisible();
+    await expect(alertsDialogsPage.toast).toContainText(AlertsDialogsPageText.toastMessage);
   });
 
-  test('sweet alert modal shows its title and can be closed', async ({ page }) => {
-    await page.goto('alerts-dialogs');
+  test('sweet alert modal shows its title and can be closed', async ({
+    alertsDialogsPage,
+    alertsDialogsFlow,
+  }) => {
+    await alertsDialogsFlow.openSweetAlert();
 
-    await page.getByRole('button', { name: 'Sweet Alert', exact: true }).click();
+    await expect(alertsDialogsPage.modal).toContainText(AlertsDialogsPageText.sweetAlertTitle);
 
-    const modal = page.locator('[role="dialog"], [role="alertdialog"]').first();
-    await expect(modal).toContainText(AlertsDialogsPageText.sweetAlertTitle);
-
-    await modal.getByRole('button', { name: 'Sometime' }).click();
-    await expect(modal).toBeHidden();
+    await alertsDialogsPage.closeSweetAlert();
+    await expect(alertsDialogsPage.modal).toBeHidden();
   });
 });

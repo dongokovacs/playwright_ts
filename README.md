@@ -10,7 +10,7 @@ A Playwright + TypeScript framework built to show how I'd actually architect a t
 
 ## What this is meant to show
 
-- **Framework architecture** — fixture-based dependency injection, a fluent API client, custom expect matchers that attach failure context automatically, and a deterministic self-healing locator with a heal log you can actually inspect.
+- **Framework architecture** — fixture-based dependency injection, a fluent API client, custom expect matchers that attach failure context automatically, a deterministic self-healing locator with a heal log you can actually inspect, and a Page Object / Flow split (pages know one screen, flows know a business use case built from several).
 - **AI integration** — an `AIProvider` interface (OpenRouter behind it) used for two things: semantic assertions on text that isn't fixed-wording, and Zod-validated AI-generated test data. Nothing calls the API directly from a test.
 - **Hybrid API + UI testing** — write through the API, verify through the real UI, and back. Testing-pyramid thinking instead of E2E-for-everything.
 - **CI/CD that's actually set up properly** — a fast `@smoke` PR gate, a full suite that publishes results as a GitHub check, and a nightly run with a published report and flaky-test detection.
@@ -75,7 +75,8 @@ src/
   core/       logger (ring buffer), self-healing locator
   expects/    custom expect matchers
   fixtures/   Playwright fixture composition — the only import path for tests
-  pages/      Page Objects, used only where justified
+  flows/      named business use cases, composed from Page Objects
+  pages/      Page Objects — one per page used in tests
   utils/      test data builders
 tests/
   api/        Conduit API tests (CRUD + data-driven negative tests)
