@@ -6,7 +6,7 @@ import { buildArticlePayload } from '../../src/utils/data-factory';
 // exist, or a write attempted without auth. These go through `api`
 // directly rather than adding one-off "ExpectingError" methods to
 // ArticlesClient for cases that aren't part of its real contract.
-test.describe('Articles API — error paths', () => {
+test.describe('Articles API — error paths @resilience', () => {
   test('GET a nonexistent slug returns 404', async ({ api }) => {
     await api.path('/articles/this-slug-does-not-exist-xyz123').getRequest(404);
   });

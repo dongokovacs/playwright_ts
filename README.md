@@ -44,6 +44,9 @@ npm run test:ui       # UI suite against QA Playground
 npm run test:hybrid   # hybrid API+UI suite against Conduit
 npm run test:a11y     # accessibility checks (axe-core), grep @a11y
 npm run test:perf     # Core Web Vitals budgets, grep @perf
+npm run test:resilience # network failure / error-path tests, grep @resilience
+npm run test:negative  # data-driven input validation tests, grep @negative
+npm run test:ai        # the AI-assisted hybrid test, grep @ai
 npm test               # everything
 ```
 
@@ -74,7 +77,7 @@ There's a Husky pre-commit hook running lint-staged on whatever's staged.
 src/
   ai/         AIProvider interface + OpenRouter implementation, assertion + data-gen helpers
   api/        fluent ApiClient, endpoint clients, Zod schemas
-  core/       logger (ring buffer), self-healing locator
+  core/       logger (ring buffer), self-healing locator, web-vitals collector
   expects/    custom expect matchers
   fixtures/   Playwright fixture composition — the only import path for tests
   flows/      named business use cases, composed from Page Objects
@@ -86,4 +89,4 @@ tests/
   hybrid/     Conduit API+UI (+ AI) tests
 ```
 
-[ARCHITECTURE.md](./ARCHITECTURE.md) has the reasoning behind the layout.
+[ARCHITECTURE.md](./ARCHITECTURE.md) has the reasoning behind the layout. [CONTRIBUTING.md](./CONTRIBUTING.md) covers how to add to it, whether that's a new Page Object, a fixture, or anything else.

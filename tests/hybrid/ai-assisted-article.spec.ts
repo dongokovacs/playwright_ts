@@ -11,7 +11,7 @@ const aiProvider = createOpenRouterProviderFromEnv();
 // configured, a semantic assertion checks the rendered text matches what we
 // asked for. No key? Falls back to faker and skips just that last check —
 // the test itself still runs and reports either way.
-test.describe('Hybrid + AI: AI-drafted article lifecycle', () => {
+test.describe('Hybrid + AI: AI-drafted article lifecycle @ai', () => {
   test('AI-drafted (or faker-fallback) article renders correctly and matches its intended topic', async ({
     articlePage,
     articleFlow,

@@ -84,9 +84,9 @@ I'm calling this out specifically because I reviewed a similar-purpose repo wher
 
 ### Test-data cleanup is tracked, not assumed
 
-Tests that create an article through `articlesApi.create()` call `createdArticles.track(slug)` right after (`fixtures/api.fixture.ts`). The fixture's teardown then deletes anything still tracked when the test ends, swallowing whatever error comes back — already deleted, never existed, doesn't matter, cleanup isn't the thing under test.
+Tests that create an article call `createdArticles.track(slug)` right after (`fixtures/api.fixture.ts`). The fixture's teardown deletes anything still tracked once the test ends. Whatever error comes back from that delete gets swallowed — already deleted, never existed, doesn't matter, cleanup isn't the thing under test.
 
-The alternative was an `afterEach` repeated in every spec that creates data, with the same "did I remember to call it on every exit path" risk `try/finally` has anywhere else. A tracked fixture means a test that throws mid-assertion still doesn't leak an article into Conduit's public feed — and tests that are actually testing deletion (`article-lifecycle.spec.ts`, the create/update/delete test in `articles.spec.ts`) call `untrack()` right after their explicit delete, so teardown doesn't fire a redundant second one.
+I considered just repeating an `afterEach` in every spec that creates data, but that has the same problem `try/finally` has everywhere: did you actually remember it on every exit path? A test that throws mid-assertion now still gets its article cleaned up. Tests where deletion is the actual thing under test (`article-lifecycle.spec.ts`, the create/update/delete test in `articles.spec.ts`) call `untrack()` right after their own explicit delete, so teardown doesn't go and fire a second, redundant one.
 
 ### Every page gets a Page Object
 
@@ -110,9 +110,23 @@ Concretely: `FormsPage.fillEmail()` is a page-level action. `FormsFlow.submitVal
 
 Worth noting because it cost real debugging time: `page.waitForEvent('dialog')` looked like the cleaner way to write this and doesn't work here. A native dialog blocks the page synchronously, so the click that opens it can't resolve until the dialog is handled — and with `waitForEvent`, nothing handles it until _after_ the click's promise has already settled. That's a deadlock, and it hangs for the full test timeout instead of failing fast. The fix is to call `dialog.accept()`/`dialog.dismiss()` _inside_ the `page.once('dialog', ...)` callback itself, same as the original tests did — the handler firing doesn't depend on the click having resolved, so accepting from inside it breaks the deadlock. `expect.poll()` in the original code existed for exactly this reason: the click can resolve before the async handler finishes, so anything reading the result needs to either poll or, in the flow methods now, be wrapped in its own `Promise` that the handler resolves once it's actually done.
 
+### Accessibility checks, baselined against a third-party site
+
+`shouldHaveNoA11yViolations` wraps `@axe-core/playwright`'s `AxeBuilder` the same way the API matchers wrap everything else: do the check, attach what failed to the message, don't make the caller dig for it. The `a11y` fixture preconfigures it to WCAG 2.1 A/AA, the rule set most real audits actually get scored against.
+
+First run against QA Playground turned up two real violations, `button-name` and `color-contrast`. Neither has anything to do with this suite — they're already there on a site I don't control. So the choice was: fail forever from day one, skip axe entirely, or track what's already broken and only fail on anything new. `shouldHaveNoA11yViolations(knownIssues)` does the third thing. `forms.spec.ts` and `alerts-dialogs.spec.ts` each baseline what's already wrong on that page, and a regression beyond that baseline still fails the test.
+
+### Web Vitals budgets, not synthetic Lighthouse
+
+`src/core/web-vitals.ts` injects the real [`web-vitals`](https://github.com/GoogleChrome/web-vitals) library into the page through `page.addInitScript`, using its IIFE build so it just sets one global instead of needing a module loader. This has to happen before navigation starts, since the LCP and TTFB observers need to attach before the page begins loading or they miss what they're measuring. `performance.spec.ts` reads LCP/TTFB/CLS after a normal page load, and INP after a real interaction (the form's submit click), through the `webVitals` fixture.
+
+This is deliberately not a Lighthouse run. Lighthouse audits a page in isolation under throttled, synthetic conditions. This collects what Chrome itself would report for a real user navigating the page during the test — closer to what the rest of this framework already does (real API, real third-party UI) than a lab score would be.
+
+Budgets sit at web.dev's "poor" boundary, not "good." This runs against a public demo site over a real network, and the point is catching actual regressions, not failing on ordinary network jitter. `shouldMeetWebVitalsBudget` only checks metrics that were actually measured — INP needs a real interaction to report at all, and CLS only finalizes on a visibility change, so a load-only test legitimately won't have either yet.
+
 ## CI/CD
 
-- **`smoke.yml`** — the PR gate. Lint, format check, typecheck, then just the `@smoke`-tagged tests (7 of 20 right now). Runs in well under 2 minutes, cheap enough to not annoy anyone.
+- **`smoke.yml`** — the PR gate. Lint, format check, typecheck, then just the `@smoke`-tagged tests (7 of 30 right now). Runs in well under 2 minutes, cheap enough to not annoy anyone.
 - **`all.yml`** — full suite on every push/PR, plus manual dispatch. Publishes results as a GitHub check via `dorny/test-reporter` so pass/fail/skip is visible right on the commit, not buried in a log.
 - **`nightly.yml`** — scheduled full run with `retries: 2`. Publishes the HTML report to GitHub Pages, and `scripts/report-flaky.js` writes any test that needed a retry into the run's step summary (not a PR comment, since a scheduled run isn't attached to one).
 
