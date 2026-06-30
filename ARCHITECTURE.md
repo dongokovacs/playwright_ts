@@ -82,6 +82,12 @@ Two things actually use it:
 
 I'm calling this out specifically because I reviewed a similar-purpose repo where the hybrid and HAR-replay tests — the most interesting ones in the whole suite — were all `test.skip`'d on main. Whatever this repo claims runs, runs, in CI, on every push.
 
+### Test-data cleanup is tracked, not assumed
+
+Tests that create an article through `articlesApi.create()` call `createdArticles.track(slug)` right after (`fixtures/api.fixture.ts`). The fixture's teardown then deletes anything still tracked when the test ends, swallowing whatever error comes back — already deleted, never existed, doesn't matter, cleanup isn't the thing under test.
+
+The alternative was an `afterEach` repeated in every spec that creates data, with the same "did I remember to call it on every exit path" risk `try/finally` has anywhere else. A tracked fixture means a test that throws mid-assertion still doesn't leak an article into Conduit's public feed — and tests that are actually testing deletion (`article-lifecycle.spec.ts`, the create/update/delete test in `articles.spec.ts`) call `untrack()` right after their explicit delete, so teardown doesn't fire a redundant second one.
+
 ### Every page gets a Page Object
 
 This used to be "only where it earns it" — `alerts-dialogs.spec.ts` started out with no Page Object, each scenario being a single independent interaction, on the theory that wrapping `page.getByRole('button', { name: 'Simple Alert' }).click()` in a class is ceremony without payoff.
