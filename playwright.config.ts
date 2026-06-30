@@ -13,7 +13,12 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI
-    ? [['html', { open: 'never' }], ['list'], ['json', { outputFile: 'test-results/results.json' }]]
+    ? [
+        ['html', { open: 'never' }],
+        ['list'],
+        ['json', { outputFile: 'test-results/results.json' }],
+        ['junit', { outputFile: 'test-results/junit.xml' }],
+      ]
     : [['html', { open: 'never' }], ['list']],
   use: {
     trace: 'on-first-retry',
