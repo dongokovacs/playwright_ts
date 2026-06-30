@@ -40,3 +40,11 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+  docker-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -t playwright-ts-portfolio .

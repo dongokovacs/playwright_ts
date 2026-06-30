@@ -24,6 +24,8 @@ src/
 
 Tests import from `src/fixtures` for `test`/`expect`, and from `src/utils` or `src/api/schemas` for data builders and types. They don't reach into `request-handler.ts` or `core/*` directly — that's the whole point of having fixtures.
 
+There are two separate fixture chains, not one merged into the other: `index.ts` (API client + worker-scoped auth, used by `tests/api` and `tests/hybrid`) and `page-fixtures.ts` (Page Objects, used by `tests/ui`). UI tests don't need a Conduit auth token, so there's no reason to drag that fixture chain into a suite that never touches Conduit. `formsPage` is built the same way as `articlesApi` etc. — `base.extend` handing back a `new FormsPage(page)` — just in its own file instead of bolted onto the API one.
+
 ## Key decisions
 
 ### Fixtures over `beforeEach`
@@ -80,6 +82,8 @@ I'm calling this out specifically because I reviewed a similar-purpose repo wher
 ### Page Objects only where they earn it
 
 `FormsPage` exists because that form has a lot of interdependent fields reused across four tests. `alerts-dialogs.spec.ts` doesn't get one — each scenario is one independent interaction, and wrapping `page.getByRole('button', { name: 'Simple Alert' }).click()` in a class would just be ceremony. Don't build the abstraction before the code needs it.
+
+`FormsPage`'s locators are `readonly Locator` fields set once in the constructor, not re-queried inline in every method — the standard Playwright POM shape. Locators are lazy (they don't touch the DOM until you act on them), so building them upfront in the constructor is safe and isn't the stale-element problem it would be in Selenium.
 
 ## CI/CD
 

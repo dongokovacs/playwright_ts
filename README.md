@@ -29,6 +29,8 @@ TypeScript · Playwright Test · Zod · `@faker-js/faker` · OpenRouter · ESLin
 
 ## Getting started
 
+Node version is pinned in `.nvmrc` (run `nvm use` if you have nvm).
+
 ```bash
 npm install
 npx playwright install --with-deps chromium
@@ -44,6 +46,15 @@ npm test               # everything
 ```
 
 No credentials needed for any of this. A Conduit test user gets registered per worker automatically (`src/fixtures/auth.fixture.ts`). `OPENROUTER_API_KEY` is optional — without it, the AI-assisted hybrid test just falls back to faker data and skips the bonus semantic check. The test itself still runs and reports.
+
+### Running with Docker
+
+Skips the local Node/Playwright-browser setup entirely — the image is pinned to the same Playwright version this repo uses, so it's the same environment CI runs in.
+
+```bash
+docker build -t playwright-ts-portfolio .
+docker run --rm playwright-ts-portfolio
+```
 
 ## Other useful scripts
 

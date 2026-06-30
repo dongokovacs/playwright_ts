@@ -1,5 +1,8 @@
 import type { Locator, Page } from '@playwright/test';
 
+/** How long to wait for each strategy to resolve before trying the next one. */
+export const DEFAULT_STRATEGY_TIMEOUT_MS = 2000;
+
 export type LocatorStrategy = {
   name: string;
   locate: (page: Page) => Locator;
@@ -30,7 +33,7 @@ export class HealingLocator {
     }
   }
 
-  async resolve(timeoutPerStrategyMs = 2000): Promise<Locator> {
+  async resolve(timeoutPerStrategyMs = DEFAULT_STRATEGY_TIMEOUT_MS): Promise<Locator> {
     const attempted: string[] = [];
 
     for (const strategy of this.strategies) {

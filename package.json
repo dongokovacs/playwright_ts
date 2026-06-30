@@ -7,6 +7,9 @@
     "url": "https://github.com/dongokovacs/playwright_ts.git"
   },
   "main": "index.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "test": "playwright test",
     "test:api": "playwright test --project=api",
