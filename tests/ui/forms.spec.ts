@@ -1,4 +1,5 @@
-import { expect, test } from '../../src/fixtures/page-fixtures';
+import { expect, test } from '../../src/fixtures/page.fixtures';
+import { FormsPageText } from '../../src/fixtures/strings';
 import { buildFormData } from '../../src/utils/data-factory';
 
 test.describe('Forms practice page', () => {
@@ -17,7 +18,7 @@ test.describe('Forms practice page', () => {
 
     await expect(formsPage.successMessage()).toBeVisible();
     await expect(
-      page.getByText(`Hi ${data.firstName} ${data.lastName}, your details have been recorded.`),
+      page.getByText(FormsPageText.successDetail(data.firstName, data.lastName)),
     ).toBeVisible();
   });
 
@@ -26,9 +27,11 @@ test.describe('Forms practice page', () => {
 
     await formsPage.submit();
 
-    await expect(formsPage.errorFor('first-name')).toHaveText('First name is required.');
-    await expect(formsPage.errorFor('email')).toHaveText('Email is required.');
-    await expect(formsPage.errorFor('terms')).toHaveText('You must accept the terms.');
+    await expect(formsPage.errorFor('first-name')).toHaveText(
+      FormsPageText.errors.firstNameRequired,
+    );
+    await expect(formsPage.errorFor('email')).toHaveText(FormsPageText.errors.emailRequired);
+    await expect(formsPage.errorFor('terms')).toHaveText(FormsPageText.errors.termsRequired);
   });
 
   test('mismatched passwords show a confirmation error', async ({ formsPage }) => {
@@ -38,7 +41,9 @@ test.describe('Forms practice page', () => {
     await formsPage.fillConfirmPassword('different456');
     await formsPage.submit();
 
-    await expect(formsPage.errorFor('confirm-password')).toHaveText('Passwords do not match.');
+    await expect(formsPage.errorFor('confirm-password')).toHaveText(
+      FormsPageText.errors.passwordMismatch,
+    );
   });
 
   test('invalid email format shows a validation error', async ({ formsPage }) => {
@@ -47,6 +52,6 @@ test.describe('Forms practice page', () => {
     await formsPage.fillEmail('not-an-email');
     await formsPage.submit();
 
-    await expect(formsPage.errorFor('email')).toHaveText('Enter a valid email address.');
+    await expect(formsPage.errorFor('email')).toHaveText(FormsPageText.errors.invalidEmail);
   });
 });

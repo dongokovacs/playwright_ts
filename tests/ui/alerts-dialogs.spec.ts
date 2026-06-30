@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { AlertsDialogsPageText } from '../../src/fixtures/strings';
 
 test.describe('Alerts & Dialogs practice page', () => {
   test('accepts a simple browser alert and reads its message @smoke', async ({ page }) => {
@@ -11,7 +12,7 @@ test.describe('Alerts & Dialogs practice page', () => {
     });
 
     await page.getByRole('button', { name: 'Simple Alert', exact: true }).click();
-    await expect.poll(() => alertMessage).toBe('Welcome to QA PlayGround!');
+    await expect.poll(() => alertMessage).toBe(AlertsDialogsPageText.simpleAlertMessage);
   });
 
   test('accepting the confirm dialog records an Accepted result', async ({ page }) => {
@@ -20,7 +21,7 @@ test.describe('Alerts & Dialogs practice page', () => {
     page.once('dialog', (dialog) => dialog.accept());
     await page.getByRole('button', { name: 'Confirm Alert', exact: true }).click();
 
-    await expect(page.getByText('Result: Accepted')).toBeVisible();
+    await expect(page.getByText(AlertsDialogsPageText.confirmAccepted)).toBeVisible();
   });
 
   test('dismissing the confirm dialog records a Dismissed result', async ({ page }) => {
@@ -29,7 +30,7 @@ test.describe('Alerts & Dialogs practice page', () => {
     page.once('dialog', (dialog) => dialog.dismiss());
     await page.getByRole('button', { name: 'Confirm Alert', exact: true }).click();
 
-    await expect(page.getByText('Result: Dismissed')).toBeVisible();
+    await expect(page.getByText(AlertsDialogsPageText.confirmDismissed)).toBeVisible();
   });
 
   test('typed prompt input is captured after accepting', async ({ page }) => {
@@ -38,7 +39,9 @@ test.describe('Alerts & Dialogs practice page', () => {
     page.once('dialog', (dialog) => dialog.accept('healing-locator-demo'));
     await page.getByRole('button', { name: 'Prompt Alert', exact: true }).click();
 
-    await expect(page.getByText('Your name is — healing-locator-demo')).toBeVisible();
+    await expect(
+      page.getByText(AlertsDialogsPageText.promptResult('healing-locator-demo')),
+    ).toBeVisible();
   });
 
   test('toast alert renders a [data-sonner-toast] element @smoke', async ({ page }) => {
@@ -48,7 +51,7 @@ test.describe('Alerts & Dialogs practice page', () => {
 
     const toast = page.locator('[data-sonner-toast]');
     await expect(toast).toBeVisible();
-    await expect(toast).toContainText('This is simple toast.');
+    await expect(toast).toContainText(AlertsDialogsPageText.toastMessage);
   });
 
   test('sweet alert modal shows its title and can be closed', async ({ page }) => {
@@ -57,7 +60,7 @@ test.describe('Alerts & Dialogs practice page', () => {
     await page.getByRole('button', { name: 'Sweet Alert', exact: true }).click();
 
     const modal = page.locator('[role="dialog"], [role="alertdialog"]').first();
-    await expect(modal).toContainText('Modern Alert');
+    await expect(modal).toContainText(AlertsDialogsPageText.sweetAlertTitle);
 
     await modal.getByRole('button', { name: 'Sometime' }).click();
     await expect(modal).toBeHidden();
