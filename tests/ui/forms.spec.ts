@@ -52,4 +52,16 @@ test.describe('Forms practice page', () => {
 
     await expect(formsPage.errorFor('email')).toHaveText(FormsPageText.errors.invalidEmail);
   });
+
+  test('has no detectable accessibility violations @a11y', async ({ formsPage, a11y }) => {
+    await formsPage.goto();
+
+    const results = await a11y.analyze();
+
+    // QA Playground is a third-party demo site; these two are pre-existing
+    // there, not something this suite can fix. Tracked as a known baseline
+    // so the test still catches anything new instead of being all-or-nothing.
+    const knownIssues = ['button-name', 'color-contrast'];
+    expect(results).shouldHaveNoA11yViolations(knownIssues);
+  });
 });

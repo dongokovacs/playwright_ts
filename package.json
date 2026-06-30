@@ -16,6 +16,7 @@
     "test:ui": "playwright test --project=ui",
     "test:hybrid": "playwright test --project=hybrid",
     "test:smoke": "playwright test --grep @smoke",
+    "test:a11y": "playwright test --grep @a11y",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -37,6 +38,7 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.61.1",
     "@types/node": "^26.0.1",
