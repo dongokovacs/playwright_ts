@@ -10,6 +10,8 @@ on:
 permissions:
   contents: read
   checks: write
+  pages: write
+  id-token: write
 
 jobs:
   full-suite:
@@ -62,3 +64,23 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+      # Pages-only on a push to main, not on PRs — PR runs would race each
+      # other overwriting the same shared Pages site with no stable URL.
+      - name: Upload Playwright report (Pages artifact)
+        if: always() && github.event_name == 'push'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: playwright-report/
+
+  publish-report:
+    needs: full-suite
+    if: always() && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
