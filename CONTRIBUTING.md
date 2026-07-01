@@ -8,13 +8,13 @@ One per page used in `tests/`, in `src/pages/`. Locators are `readonly Locator` 
 
 `eslint.config.js` flags any `page.locator()` call inside `tests/**/*.ts`. That's not a suggestion. If a test needs a new locator, it goes on a Page Object method, not inline in the spec. No Page Object yet for that page? Add one instead of working around the rule.
 
-`src/pages/forms.page.ts` is a good template: typed locators in the constructor, one method per action, a `goto()`. `conduit-article.page.ts` is the minimal version if a full page feels like overkill for what you're adding.
+`src/pages/forms.page.ts` is a good template: typed locators in the constructor, public and ready for callers to act on directly, a `goto()`, and methods only for the actions that need real logic (dynamic selectors, multi-step sequences) — not one-line wrappers around a locator that's already public. `conduit-article.page.ts` is the minimal version if a full page feels like overkill for what you're adding.
 
 ## Flow or just a Page Object?
 
 A Page Object only knows about one page. Once you're describing a use case instead — "fill out the whole form and submit", "create an article via the API and view it in the UI" — that's a Flow. Lives in `src/flows/`, built out of one or more Page Objects (plus API clients, for hybrid flows).
 
-Ask whether the sequence is actually reused, or whether some test wants to deliberately skip part of it. `forms.spec.ts`'s negative tests (empty submit, bad email) call `FormsPage` directly instead of going through `FormsFlow.submitValidForm()`, because they're testing what happens when you don't follow the happy path. If your new flow's only caller skips half of it, it probably isn't a flow yet.
+Ask whether the sequence is actually reused, or whether some test wants to deliberately skip part of it. `forms.spec.ts`'s negative tests (empty submit, bad email) call `FormsPage` directly instead of going through `FormsFlow.fillValidForm()`/`submitForm()`, because they're testing what happens when you don't follow the happy path. If your new flow's only caller skips half of it, it probably isn't a flow yet.
 
 Assertions stay in the test. A flow does things — create, navigate, delete — the test checks them. That way a failing `expect` points at the test that has it, not at some shared method three files away.
 
