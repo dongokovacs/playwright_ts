@@ -24,7 +24,8 @@ test.describe('Performance: Core Web Vitals @perf', () => {
     formsFlow,
     webVitals,
   }) => {
-    await formsFlow.submitValidForm(buildFormData());
+    await formsFlow.fillValidForm(buildFormData());
+    await formsFlow.submitForm();
 
     // INP only reports after the interaction that triggered it has been
     // processed and the browser's gone idle — give it a beat before reading.

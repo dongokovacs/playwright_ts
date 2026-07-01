@@ -11,16 +11,17 @@ test.describe('Forms practice page', () => {
   }) => {
     const data = buildFormData();
 
-    await formsFlow.submitValidForm(data);
+    await formsFlow.fillValidForm(data);
+    await formsFlow.submitForm();
 
-    await expect(formsPage.successMessage()).toBeVisible();
+    await expect(formsPage.successMessage).toBeVisible();
     await expect(formsPage.successDetail(data.firstName, data.lastName)).toBeVisible();
   });
 
   test('empty submit shows required-field validation errors', async ({ formsPage }) => {
     await formsPage.goto();
 
-    await formsPage.submit();
+    await formsPage.submitButton.click();
 
     await expect(formsPage.errorFor('first-name')).toHaveText(
       FormsPageText.errors.firstNameRequired,
@@ -32,9 +33,9 @@ test.describe('Forms practice page', () => {
   test('mismatched passwords show a confirmation error', async ({ formsPage }) => {
     await formsPage.goto();
 
-    await formsPage.fillPassword('password123');
-    await formsPage.fillConfirmPassword('different456');
-    await formsPage.submit();
+    await formsPage.passwordInput.fill('password123');
+    await formsPage.confirmPasswordInput.fill('different456');
+    await formsPage.submitButton.click();
 
     await expect(formsPage.errorFor('confirm-password')).toHaveText(
       FormsPageText.errors.passwordMismatch,
@@ -44,8 +45,8 @@ test.describe('Forms practice page', () => {
   test('invalid email format shows a validation error', async ({ formsPage }) => {
     await formsPage.goto();
 
-    await formsPage.fillEmail('not-an-email');
-    await formsPage.submit();
+    await formsPage.emailInput.fill('not-an-email');
+    await formsPage.submitButton.click();
 
     await expect(formsPage.errorFor('email')).toHaveText(FormsPageText.errors.invalidEmail);
   });

@@ -23,10 +23,12 @@ export type FormData = {
   confirmPassword: string;
 };
 
-// POM for the QA Playground "Forms" page — locators plus one atomic action
-// per field. The multi-step "fill the whole form and submit" business flow
-// lives in flows/forms.flow.ts instead of here; see ARCHITECTURE.md for why
-// that's a separate layer.
+// POM for the QA Playground "Forms" page — public locators for callers to
+// act on directly, plus the actions that need real logic: dynamic selector
+// construction (selectGender, toggleInterest) or multiple steps
+// (selectCountry). The multi-step "fill the whole form and submit" business
+// flow lives in flows/forms.flow.ts instead of here; see ARCHITECTURE.md for
+// why that's a separate layer.
 //
 // resolveCountryTrigger() below deliberately points its primary selector at
 // a test-id that doesn't exist, so the fallback in HealingLocator actually
@@ -43,7 +45,7 @@ export class FormsPage {
   readonly confirmPasswordInput: Locator;
   readonly termsCheckbox: Locator;
   readonly submitButton: Locator;
-  readonly successMessageText: Locator;
+  readonly successMessage: Locator;
   readonly countryTrigger: Locator;
   /** Renamed test-id that doesn't exist on the live page — the primary, failing-on-purpose HealingLocator strategy. */
   readonly countryTriggerStale: Locator;
@@ -60,33 +62,13 @@ export class FormsPage {
     this.confirmPasswordInput = page.getByTestId('input-confirm-password');
     this.termsCheckbox = page.getByTestId('checkbox-terms');
     this.submitButton = page.getByTestId('submit-form-btn');
-    this.successMessageText = page.getByText(FormsPageText.successHeading);
+    this.successMessage = page.getByText(FormsPageText.successHeading);
     this.countryTrigger = page.getByTestId('select-country');
     this.countryTriggerStale = page.getByTestId('select-country-field');
   }
 
   async goto(): Promise<void> {
     await this.page.goto('forms');
-  }
-
-  async fillFirstName(value: string): Promise<void> {
-    await this.firstNameInput.fill(value);
-  }
-
-  async fillLastName(value: string): Promise<void> {
-    await this.lastNameInput.fill(value);
-  }
-
-  async fillEmail(email: string): Promise<void> {
-    await this.emailInput.fill(email);
-  }
-
-  async fillPhone(value: string): Promise<void> {
-    await this.phoneInput.fill(value);
-  }
-
-  async fillDob(value: string): Promise<void> {
-    await this.dobInput.fill(value);
   }
 
   async selectGender(gender: GenderOption): Promise<void> {
@@ -99,32 +81,8 @@ export class FormsPage {
     await this.page.getByRole('option', { name: country, exact: true }).click();
   }
 
-  async fillCity(value: string): Promise<void> {
-    await this.cityInput.fill(value);
-  }
-
   async toggleInterest(interest: string): Promise<void> {
     await this.page.getByTestId(`checkbox-interest-${interest.toLowerCase()}`).click();
-  }
-
-  async fillPassword(password: string): Promise<void> {
-    await this.passwordInput.fill(password);
-  }
-
-  async fillConfirmPassword(password: string): Promise<void> {
-    await this.confirmPasswordInput.fill(password);
-  }
-
-  async acceptTerms(): Promise<void> {
-    await this.termsCheckbox.click();
-  }
-
-  async submit(): Promise<void> {
-    await this.submitButton.click();
-  }
-
-  successMessage(): Locator {
-    return this.successMessageText;
   }
 
   successDetail(firstName: string, lastName: string): Locator {
