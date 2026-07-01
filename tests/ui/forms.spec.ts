@@ -6,7 +6,6 @@ test.describe('Forms practice page', () => {
   // "healed locator" = the fallback-selector logic in healing-locator.ts,
   // not an LLM. See ARCHITECTURE.md if you're wondering why.
   test('submits successfully with valid data, including a healed locator @smoke', async ({
-    page,
     formsPage,
     formsFlow,
   }) => {
@@ -15,9 +14,7 @@ test.describe('Forms practice page', () => {
     await formsFlow.submitValidForm(data);
 
     await expect(formsPage.successMessage()).toBeVisible();
-    await expect(
-      page.getByText(FormsPageText.successDetail(data.firstName, data.lastName)),
-    ).toBeVisible();
+    await expect(formsPage.successDetail(data.firstName, data.lastName)).toBeVisible();
   });
 
   test('empty submit shows required-field validation errors', async ({ formsPage }) => {

@@ -45,7 +45,10 @@ test.describe('Hybrid: Conduit UI resilience to API failures @resilience', () =>
     await expect(page).toHaveURL(/\/$/);
   });
 
-  test('home page survives a malformed tags response instead of throwing', async ({ page }) => {
+  test('home page survives a malformed tags response instead of throwing', async ({
+    page,
+    homePage,
+  }) => {
     const pageErrors: Error[] = [];
     page.on('pageerror', (error) => pageErrors.push(error));
 
@@ -58,8 +61,7 @@ test.describe('Hybrid: Conduit UI resilience to API failures @resilience', () =>
     });
 
     await page.goto('/');
-
-    await expect(page.getByText('Your Feed')).toBeVisible();
+    await expect(homePage.feedHeading).toBeVisible();
     expect(pageErrors).toHaveLength(0);
   });
 });
