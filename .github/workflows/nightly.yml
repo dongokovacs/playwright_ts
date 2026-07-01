@@ -46,11 +46,17 @@ jobs:
           path: playwright-report/
           retention-days: 14
 
+      - name: Build Pages site (README landing page + report)
+        if: always()
+        run: |
+          npm run build:pages
+          cp -r playwright-report pages-site/report
+
       - name: Upload Playwright report (Pages artifact)
         if: always()
         uses: actions/upload-pages-artifact@v3
         with:
-          path: playwright-report/
+          path: pages-site/
 
       - name: Fail the job if tests failed
         if: steps.run-tests.outcome != 'success'
