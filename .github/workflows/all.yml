@@ -14,23 +14,26 @@ permissions:
 jobs:
   full-suite:
     runs-on: ubuntu-latest
+    # Pinned to the same Playwright version as package.json/Dockerfile —
+    # browsers and their OS deps are already baked in here, so there's no
+    # "Install Playwright browsers" step below.
+    container:
+      image: mcr.microsoft.com/playwright:v1.61.1-noble
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
         with:
-          node-version: 20
-          cache: npm
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
 
       - run: npm ci
 
       - run: npm run lint
       - run: npm run format:check
       - run: npm run typecheck
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
 
       - name: Run full suite
         run: npm test
