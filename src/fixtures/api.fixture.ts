@@ -7,6 +7,7 @@ import { setActiveLogger } from '../expects/custom-expects';
 import { CONDUIT_API_URL } from '../config/env';
 import { ConduitArticlePage } from '../pages/conduit-article.page';
 import { ConduitArticleFlow } from '../flows/conduit-article.flow';
+import { HomePage } from '../pages/home.page';
 import { test as authTest } from './auth.fixture';
 
 export type CreatedArticlesTracker = {
@@ -24,6 +25,7 @@ type ApiFixtures = {
   // requests them, so they're never instantiated there).
   articlePage: ConduitArticlePage;
   articleFlow: ConduitArticleFlow;
+  homePage: HomePage;
   // Safety-net cleanup for articles created in a test. Tests that aren't
   // testing deletion itself just track(); tests that delete as part of the
   // assertion should untrack() right after so teardown doesn't double-delete.
@@ -59,6 +61,10 @@ export const test = authTest.extend<ApiFixtures>({
 
   articleFlow: async ({ articlesApi, articlePage }, use) => {
     await use(new ConduitArticleFlow(articlesApi, articlePage));
+  },
+
+  homePage: async ({ page }, use) => {
+    await use(new HomePage(page));
   },
 
   createdArticles: async ({ articlesApi }, use) => {

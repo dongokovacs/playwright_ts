@@ -127,6 +127,10 @@ export class FormsPage {
     return this.successMessageText;
   }
 
+  successDetail(firstName: string, lastName: string): Locator {
+    return this.page.getByText(FormsPageText.successDetail(firstName, lastName));
+  }
+
   /** field key matches the page's `error-<field>` data-testid suffix, e.g. "email", "confirm-password". */
   errorFor(field: string): Locator {
     return this.page.getByTestId(`error-${field}`);
