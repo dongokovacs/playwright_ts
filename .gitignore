@@ -3,6 +3,7 @@ dist/
 test-results/
 playwright-report/
 blob-report/
+pages-site/
 playwright/.cache/
 *.har
 .env

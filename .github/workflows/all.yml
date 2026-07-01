@@ -67,11 +67,17 @@ jobs:
 
       # Pages-only on a push to main, not on PRs — PR runs would race each
       # other overwriting the same shared Pages site with no stable URL.
+      - name: Build Pages site (README landing page + report)
+        if: always() && github.event_name == 'push'
+        run: |
+          npm run build:pages
+          cp -r playwright-report pages-site/report
+
       - name: Upload Playwright report (Pages artifact)
         if: always() && github.event_name == 'push'
         uses: actions/upload-pages-artifact@v3
         with:
-          path: playwright-report/
+          path: pages-site/
 
   publish-report:
     needs: full-suite
