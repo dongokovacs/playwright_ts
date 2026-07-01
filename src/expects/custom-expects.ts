@@ -44,6 +44,11 @@ export const expect = baseExpect.extend({
     // is the deep-equal fallback (see ARCHITECTURE.md).
     const pass = isDeepStrictEqual(received, expected);
 
+    // The reason this exists over the built-in toEqual: on failure it
+    // attaches the last 10 request/response pairs (recentLogsOrEmpty(),
+    // backed by the ring buffer in core/logger.ts) so a red CI run already
+    // shows what the API actually sent, no local re-run needed.
+
     const message = pass
       ? () =>
           `expected ${this.utils.printReceived(received)} not to equal ${this.utils.printExpected(expected)}`
