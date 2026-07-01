@@ -21,6 +21,12 @@ jobs:
       image: mcr.microsoft.com/playwright:v1.61.1-noble
     timeout-minutes: 15
     steps:
+      # Container jobs run as a different UID than the one that owns the
+      # runner's checked-out workspace, so git refuses to touch it
+      # ("detected dubious ownership") unless it's explicitly trusted first.
+      - name: Mark workspace as a safe git directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - uses: actions/checkout@v4
 
       - name: Cache npm dependencies
