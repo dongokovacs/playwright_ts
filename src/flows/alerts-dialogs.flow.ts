@@ -1,69 +1,80 @@
 import type { Page } from '@playwright/test';
 import type { AlertsDialogsPage } from '../pages/alerts-dialogs.page';
 
-// One named use case per dialog scenario.
-//
-// The dialog must be accepted/dismissed *inside* the page.once('dialog', ...)
-// handler itself, not in code that runs after awaiting the click that opens
-// it. A native dialog blocks the page synchronously, so the click's own
-// action-wait can depend on the dialog being handled — if that handling is
-// deferred to after `await click()`, it never happens and the click hangs.
-// The handler firing is independent of whether click() has resolved yet, so
-// doing the accept/dismiss inside it works regardless.
+// One named use case per scenario on the practice page. All dialogs here are
+// CSS/DOM modals (role="dialog"), not native browser alerts, so there is no
+// page.on('dialog', ...) handling required — plain locator clicks work.
 export class AlertsDialogsFlow {
   constructor(
     private readonly page: Page,
     private readonly alertsDialogsPage: AlertsDialogsPage,
   ) {}
 
-  async triggerSimpleAlertAndCaptureMessage(): Promise<string> {
+  async dismissInfoDialogWithOk(): Promise<void> {
     await this.alertsDialogsPage.goto();
-    const result = new Promise<string>((resolve) => {
-      this.page.once('dialog', async (dialog) => {
-        const message = dialog.message();
-        await dialog.accept();
-        resolve(message);
-      });
-    });
-    await this.alertsDialogsPage.simpleAlertButton.click();
-    return result;
+    await this.alertsDialogsPage.openInfoDialogButton.click();
+    await this.alertsDialogsPage.infoDialogOkButton.click();
   }
 
-  async respondToConfirm(accept: boolean): Promise<void> {
+  async closeInfoDialogWithX(): Promise<void> {
     await this.alertsDialogsPage.goto();
-    const handled = new Promise<void>((resolve) => {
-      this.page.once('dialog', async (dialog) => {
-        if (accept) {
-          await dialog.accept();
-        } else {
-          await dialog.dismiss();
-        }
-        resolve();
-      });
-    });
-    await this.alertsDialogsPage.confirmAlertButton.click();
-    await handled;
+    await this.alertsDialogsPage.openInfoDialogButton.click();
+    await this.alertsDialogsPage.infoDialogCloseButton.click();
   }
 
-  async submitPrompt(text: string): Promise<void> {
+  async acceptConfirmDialog(): Promise<void> {
     await this.alertsDialogsPage.goto();
-    const handled = new Promise<void>((resolve) => {
-      this.page.once('dialog', async (dialog) => {
-        await dialog.accept(text);
-        resolve();
-      });
-    });
-    await this.alertsDialogsPage.promptAlertButton.click();
-    await handled;
+    await this.alertsDialogsPage.openConfirmDialogButton.click();
+    await this.alertsDialogsPage.confirmOkButton.click();
   }
 
-  async triggerToast(): Promise<void> {
+  async cancelConfirmDialog(): Promise<void> {
     await this.alertsDialogsPage.goto();
-    await this.alertsDialogsPage.toastAlertButton.click();
+    await this.alertsDialogsPage.openConfirmDialogButton.click();
+    await this.alertsDialogsPage.confirmCancelButton.click();
   }
 
-  async openSweetAlert(): Promise<void> {
+  async stayOnUnsavedDialog(): Promise<void> {
     await this.alertsDialogsPage.goto();
-    await this.alertsDialogsPage.sweetAlertButton.click();
+    await this.alertsDialogsPage.openUnsavedDialogButton.click();
+    await this.alertsDialogsPage.stayOnPageButton.click();
+  }
+
+  async cancelDeleteDialog(): Promise<void> {
+    await this.alertsDialogsPage.goto();
+    await this.alertsDialogsPage.openDeleteDialogButton.click();
+    await this.alertsDialogsPage.deleteCancelButton.click();
+  }
+
+  async confirmDeleteDialog(): Promise<void> {
+    await this.alertsDialogsPage.goto();
+    await this.alertsDialogsPage.openDeleteDialogButton.click();
+    await this.alertsDialogsPage.deleteConfirmButton.click();
+  }
+
+  async dismissBackdropDialog(): Promise<void> {
+    await this.alertsDialogsPage.goto();
+    await this.alertsDialogsPage.openBackdropDialogButton.click();
+    await this.alertsDialogsPage.clickBackdropOutsideDialog();
+  }
+
+  async dismissEscapeDialog(): Promise<void> {
+    await this.alertsDialogsPage.goto();
+    await this.alertsDialogsPage.openEscapeDialogButton.click();
+    await this.page.keyboard.press('Escape');
+  }
+
+  async acknowledgeNotificationDialog(): Promise<void> {
+    await this.alertsDialogsPage.goto();
+    await this.alertsDialogsPage.openNotificationDialogButton.click();
+    await this.alertsDialogsPage.notificationAckButton.click();
+  }
+
+  // The dismiss button on a notification list item opens its own confirm
+  // dialog rather than removing the item immediately — a naive single click
+  // looks like a no-op unless that follow-up confirmation is also handled.
+  async dismissNotification(notifId: string, label: string): Promise<void> {
+    await this.alertsDialogsPage.notifDismissButton(notifId).click();
+    await this.alertsDialogsPage.dismissConfirmButtonFor(label).click();
   }
 }

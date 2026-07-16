@@ -18,16 +18,23 @@ test.describe('Forms practice page', () => {
     await expect(formsPage.successDetail(data.firstName, data.lastName)).toBeVisible();
   });
 
+  // Required-field validation is scoped per-form on this page (see
+  // forms.page.ts), so this exercises the three forms that carried these
+  // fields before the redesign: login (email), personal (first name), and
+  // account setup (terms).
   test('empty submit shows required-field validation errors', async ({ formsPage }) => {
     await formsPage.goto();
 
-    await formsPage.submitButton.click();
+    await formsPage.loginSubmitButton.click();
+    await expect(formsPage.errorFor('login-email')).toHaveText(FormsPageText.errors.emailRequired);
 
+    await formsPage.personalSubmitButton.click();
     await expect(formsPage.errorFor('first-name')).toHaveText(
       FormsPageText.errors.firstNameRequired,
     );
-    await expect(formsPage.errorFor('email')).toHaveText(FormsPageText.errors.emailRequired);
-    await expect(formsPage.errorFor('terms')).toHaveText(FormsPageText.errors.termsRequired);
+
+    await formsPage.submitButton.click();
+    await expect(formsPage.termsError).toBeVisible();
   });
 
   test('mismatched passwords show a confirmation error', async ({ formsPage }) => {
@@ -46,9 +53,9 @@ test.describe('Forms practice page', () => {
     await formsPage.goto();
 
     await formsPage.emailInput.fill('not-an-email');
-    await formsPage.submitButton.click();
+    await formsPage.loginSubmitButton.click();
 
-    await expect(formsPage.errorFor('email')).toHaveText(FormsPageText.errors.invalidEmail);
+    await expect(formsPage.errorFor('login-email')).toHaveText(FormsPageText.errors.invalidEmail);
   });
 
   test('has no detectable accessibility violations @a11y', async ({ formsPage, a11y }) => {

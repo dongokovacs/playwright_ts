@@ -15,8 +15,16 @@ export function buildArticlePayload(
 }
 
 // Country/gender/interests are constrained to the fixed options the Forms
-// page actually offers, not arbitrary faker output.
-const FORM_COUNTRIES = ['India', 'USA', 'UK', 'Australia', 'Germany', 'Canada'];
+// page actually offers, not arbitrary faker output. Values must match the
+// <option> labels exactly since selectCountry() uses selectOption({ label }).
+const FORM_COUNTRIES = [
+  'India',
+  'United States',
+  'United Kingdom',
+  'Australia',
+  'Germany',
+  'Canada',
+];
 
 export function buildFormData(overrides: Partial<FormData> = {}): FormData {
   const password = faker.internet.password({ length: 10 });

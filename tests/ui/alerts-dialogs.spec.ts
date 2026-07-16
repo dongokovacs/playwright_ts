@@ -2,61 +2,130 @@ import { expect, test } from '../../src/fixtures/page.fixtures';
 import { AlertsDialogsPageText } from '../../src/fixtures/strings';
 
 test.describe('Alerts & Dialogs practice page', () => {
-  test('accepts a simple browser alert and reads its message @smoke', async ({
-    alertsDialogsFlow,
-  }) => {
-    const message = await alertsDialogsFlow.triggerSimpleAlertAndCaptureMessage();
-
-    expect(message).toBe(AlertsDialogsPageText.simpleAlertMessage);
-  });
-
-  test('accepting the confirm dialog records an Accepted result', async ({
+  test('closing the info dialog via OK records a dismissed result @smoke', async ({
     alertsDialogsPage,
     alertsDialogsFlow,
   }) => {
-    await alertsDialogsFlow.respondToConfirm(true);
+    await alertsDialogsFlow.dismissInfoDialogWithOk();
 
-    await expect(alertsDialogsPage.confirmAcceptedResult).toBeVisible();
+    await expect(alertsDialogsPage.infoDialog).toBeHidden();
+    await expect(alertsDialogsPage.infoResult).toHaveText(AlertsDialogsPageText.infoDismissed);
   });
 
-  test('dismissing the confirm dialog records a Dismissed result', async ({
+  test('closing the info dialog via the X button also records a dismissed result', async ({
     alertsDialogsPage,
     alertsDialogsFlow,
   }) => {
-    await alertsDialogsFlow.respondToConfirm(false);
+    await alertsDialogsFlow.closeInfoDialogWithX();
 
-    await expect(alertsDialogsPage.confirmDismissedResult).toBeVisible();
+    await expect(alertsDialogsPage.infoDialog).toBeHidden();
+    await expect(alertsDialogsPage.infoResult).toHaveText(AlertsDialogsPageText.infoDismissed);
   });
 
-  test('typed prompt input is captured after accepting', async ({
+  test('confirming the submission dialog records a confirmed result @smoke', async ({
     alertsDialogsPage,
     alertsDialogsFlow,
   }) => {
-    await alertsDialogsFlow.submitPrompt('healing-locator-demo');
+    await alertsDialogsFlow.acceptConfirmDialog();
 
-    await expect(alertsDialogsPage.promptResult('healing-locator-demo')).toBeVisible();
+    await expect(alertsDialogsPage.confirmDialog).toBeHidden();
+    await expect(alertsDialogsPage.confirmResult).toHaveText(AlertsDialogsPageText.confirmAccepted);
   });
 
-  test('toast alert renders a [data-sonner-toast] element @smoke', async ({
+  test('cancelling the submission dialog closes it without confirming', async ({
     alertsDialogsPage,
     alertsDialogsFlow,
   }) => {
-    await alertsDialogsFlow.triggerToast();
+    await alertsDialogsFlow.cancelConfirmDialog();
 
-    await expect(alertsDialogsPage.toast).toBeVisible();
-    await expect(alertsDialogsPage.toast).toContainText(AlertsDialogsPageText.toastMessage);
+    await expect(alertsDialogsPage.confirmDialog).toBeHidden();
+    await expect(alertsDialogsPage.confirmResult).toHaveText(AlertsDialogsPageText.confirmAwaiting);
   });
 
-  test('sweet alert modal shows its title and can be closed', async ({
+  test('staying on the page from the unsaved-changes dialog records a stayed result', async ({
     alertsDialogsPage,
     alertsDialogsFlow,
   }) => {
-    await alertsDialogsFlow.openSweetAlert();
+    await alertsDialogsFlow.stayOnUnsavedDialog();
 
-    await expect(alertsDialogsPage.modal).toContainText(AlertsDialogsPageText.sweetAlertTitle);
+    await expect(alertsDialogsPage.unsavedDialog).toBeHidden();
+    await expect(alertsDialogsPage.unsavedResult).toHaveText(AlertsDialogsPageText.stayedResult);
+  });
 
-    await alertsDialogsPage.closeSweetAlert();
-    await expect(alertsDialogsPage.modal).toBeHidden();
+  test('cancelling account deletion closes the dialog without deleting', async ({
+    alertsDialogsPage,
+    alertsDialogsFlow,
+  }) => {
+    await alertsDialogsFlow.cancelDeleteDialog();
+
+    await expect(alertsDialogsPage.deleteDialog).toBeHidden();
+    await expect(alertsDialogsPage.deleteResult).toHaveText(AlertsDialogsPageText.deleteAwaiting);
+  });
+
+  test('confirming account deletion records a deleted result', async ({ alertsDialogsPage }) => {
+    await alertsDialogsPage.goto();
+    await alertsDialogsPage.openDeleteDialogButton.click();
+    await expect(alertsDialogsPage.deleteDialogEmail).toHaveText(AlertsDialogsPageText.deleteEmail);
+    await alertsDialogsPage.deleteConfirmButton.click();
+
+    await expect(alertsDialogsPage.deleteDialog).toBeHidden();
+    await expect(alertsDialogsPage.deleteResult).toHaveText(AlertsDialogsPageText.deleteConfirmed);
+  });
+
+  test('clicking the backdrop dismisses the dialog', async ({
+    alertsDialogsPage,
+    alertsDialogsFlow,
+  }) => {
+    await alertsDialogsFlow.dismissBackdropDialog();
+
+    await expect(alertsDialogsPage.backdropDialog).toBeHidden();
+    await expect(alertsDialogsPage.backdropResult).toHaveText(
+      AlertsDialogsPageText.backdropDismissed,
+    );
+  });
+
+  test('pressing Escape dismisses the keyboard dialog', async ({
+    alertsDialogsPage,
+    alertsDialogsFlow,
+  }) => {
+    await alertsDialogsFlow.dismissEscapeDialog();
+
+    await expect(alertsDialogsPage.escapeDialog).toBeHidden();
+    await expect(alertsDialogsPage.escapeResult).toHaveText(AlertsDialogsPageText.escapeDismissed);
+  });
+
+  test('notification dialog shows its title and body before being acknowledged', async ({
+    alertsDialogsPage,
+  }) => {
+    await alertsDialogsPage.goto();
+    await alertsDialogsPage.openNotificationDialogButton.click();
+
+    await expect(alertsDialogsPage.notificationDialog).toContainText(
+      AlertsDialogsPageText.notificationDialogTitle,
+    );
+    await expect(alertsDialogsPage.notificationDialog).toContainText(
+      AlertsDialogsPageText.notificationBody,
+    );
+
+    await alertsDialogsPage.notificationAckButton.click();
+
+    await expect(alertsDialogsPage.notificationDialog).toBeHidden();
+    await expect(alertsDialogsPage.notificationResult).toHaveText(
+      AlertsDialogsPageText.notificationAcknowledged,
+    );
+  });
+
+  test('dismissing a scoped notification requires confirming the follow-up dialog', async ({
+    alertsDialogsPage,
+    alertsDialogsFlow,
+  }) => {
+    await alertsDialogsPage.goto();
+
+    await alertsDialogsFlow.dismissNotification('notif-1', 'Low Disk Space');
+
+    await expect(alertsDialogsPage.notifDismissResult).toHaveText(
+      AlertsDialogsPageText.notifDismissedResult('Low Disk Space'),
+    );
   });
 
   test('has no detectable accessibility violations @a11y', async ({ alertsDialogsPage, a11y }) => {
