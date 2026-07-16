@@ -37,9 +37,7 @@ Every dependency a test needs — an authenticated API client, a logged-in page 
 
 ### Worker-scoped auth, not `workers: 1`
 
-`auth.fixture.ts` registers one throwaway Conduit user per worker, not per test. Login happens once per worker no matter how many tests it picks up, and the suite still runs fully parallel since each worker has its own isolated user — nothing to serialize around.
-
-I looked at a similar project that solved the same "don't log in every test" problem by setting `workers: 1`, which kills parallelism entirely to get there. Same fixture savings, much worse throughput. Didn't want to repeat that.
+`auth.fixture.ts` registers one throwaway Conduit user per worker, not per test. Login happens once per worker no matter how many tests it picks up, and the suite still runs fully parallel since each worker has its own isolated user — nothing to serialize around. Setting `workers: 1` would get the same "don't log in every test" savings, but at the cost of parallelism entirely — not worth it once the per-worker fixture does the same job without that trade-off.
 
 ### Fluent `ApiClient`
 
@@ -78,9 +76,7 @@ Two things actually use it:
 
 ### Hybrid tests are real
 
-`article-lifecycle.spec.ts` creates an article through the API, checks it actually renders on the live Conduit UI, deletes it through the API, and checks the UI reflects that too. No `test.skip` anywhere in it.
-
-I'm calling this out specifically because I reviewed a similar-purpose repo where the hybrid and HAR-replay tests — the most interesting ones in the whole suite — were all `test.skip`'d on main. Whatever this repo claims runs, runs, in CI, on every push.
+`article-lifecycle.spec.ts` creates an article through the API, checks it actually renders on the live Conduit UI, deletes it through the API, and checks the UI reflects that too. No `test.skip` anywhere in it — whatever this repo claims runs, runs, in CI, on every push.
 
 ### Test-data cleanup is tracked, not assumed
 

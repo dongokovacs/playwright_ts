@@ -47,7 +47,7 @@ module.exports = tseslint.config(
     files: ['tests/**/*.ts'],
     rules: {
       'no-restricted-syntax': [
-        'warn',
+        'error',
         {
           selector: "CallExpression[callee.property.name='locator']",
           message:
