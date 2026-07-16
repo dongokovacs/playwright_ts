@@ -8,6 +8,8 @@ A Playwright + TypeScript framework built to show how I'd actually architect a t
 
 **[ARCHITECTURE.md](./ARCHITECTURE.md) is the part that matters** — it explains why things are built this way, not just what's in the repo.
 
+Written with an AI assistant's help (docs included), but every architectural decision in here is mine and I can defend any of it in a live conversation — treat that as the actual test, not the prose.
+
 ## What this is meant to show
 
 - **Framework architecture** — fixture-based dependency injection, a fluent API client, custom expect matchers that attach failure context automatically, a deterministic self-healing locator with a heal log you can actually inspect, and a Page Object / Flow split (pages know one screen, flows know a business use case built from several).
