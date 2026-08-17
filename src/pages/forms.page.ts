@@ -62,6 +62,17 @@ export class FormsPage {
   readonly countryTrigger: Locator;
   /** Renamed test-id that doesn't exist on the live page — the primary, failing-on-purpose HealingLocator strategy. */
   readonly countryTriggerStale: Locator;
+  /**
+   * A plausible-looking guess for the submit button's test-id, written the
+   * way someone (human or AI) would if they generated a locator from the
+   * button's visible text/role alone, without first checking the real DOM
+   * (e.g. via `playwright codegen`) — see "Before generating a new Page
+   * Object or locator" in CLAUDE.md. It doesn't exist on the live page; the
+   * real test-id is `submit-form-btn` (see submitButton below). Exists only
+   * so `forms.spec.ts` can demonstrate, in a live test, why exploring the
+   * real page first beats guessing a selector from a description.
+   */
+  readonly guessedSubmitButton: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -83,6 +94,7 @@ export class FormsPage {
     this.termsError = page.getByText(FormsPageText.errors.termsRequired);
     this.countryTrigger = page.getByTestId('select-country');
     this.countryTriggerStale = page.getByTestId('select-country-field');
+    this.guessedSubmitButton = page.getByTestId('submit-button');
   }
 
   async goto(): Promise<void> {

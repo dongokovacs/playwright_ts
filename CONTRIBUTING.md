@@ -4,7 +4,11 @@ This is a portfolio repo, but I built it the way I'd want a team's suite structu
 
 ## Adding a Page Object
 
-One per page used in `tests/`, in `src/pages/`. Locators are `readonly Locator` fields built once in the constructor. They're lazy in Playwright, so this doesn't touch the DOM early — not the stale-element problem it'd be in Selenium. Methods are single-step, page-level actions: `fillEmail`, `selectGender`, `submit`. Not multi-step flows, see below.
+Explore before you generate. Before writing a single locator, look at the actual rendered page instead of guessing from a description — run `npx playwright codegen <url>` (or drive the page with an MCP browser tool) and read off the real accessible roles, labels, and test-ids that exist in the DOM. This applies whether a human or an AI assistant is writing the Page Object: a locator that looks plausible but doesn't match the real DOM (wrong role name, guessed test-id, slightly-off text) is the most common way a new Page Object breaks on its first CI run, and it's avoidable for free just by checking first.
+
+Prefer selectors in this order: `getByRole()` > `getByLabel()` > `getByPlaceholder()` > `getByText()` > `getByTestId()`. Drop to a CSS class or ARIA-role selector only when the page is third-party and has no `data-testid` to reach for — `ConduitArticlePage`'s `.article-content` and `AlertsDialogsPage`'s `[data-sonner-toast]`/`[role="dialog"]` are the existing examples of that compromise, not something to reach for by default.
+
+One Page Object per page used in `tests/`, in `src/pages/`. Locators are `readonly Locator` fields built once in the constructor. They're lazy in Playwright, so this doesn't touch the DOM early — not the stale-element problem it'd be in Selenium. Methods are single-step, page-level actions: `fillEmail`, `selectGender`, `submit`. Not multi-step flows, see below.
 
 `eslint.config.js` flags any `page.locator()` call inside `tests/**/*.ts`. That's not a suggestion. If a test needs a new locator, it goes on a Page Object method, not inline in the spec. No Page Object yet for that page? Add one instead of working around the rule.
 

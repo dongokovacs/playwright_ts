@@ -58,6 +58,26 @@ test.describe('Forms practice page', () => {
     await expect(formsPage.errorFor('login-email')).toHaveText(FormsPageText.errors.invalidEmail);
   });
 
+  // These two don't check a regression — they demonstrate, in a live test
+  // instead of just a comment, why "explore before generate" (see CLAUDE.md
+  // / CONTRIBUTING.md) matters: a locator guessed from the button's text
+  // without checking the real DOM first doesn't exist on the page, while
+  // the one written after confirming the actual test-id does.
+  test('a locator guessed without exploring the real DOM does not match the page', async ({
+    formsPage,
+  }) => {
+    await formsPage.goto();
+
+    await expect(formsPage.guessedSubmitButton).toHaveCount(0);
+  });
+
+  test('a locator written after exploring the real DOM matches the page', async ({ formsPage }) => {
+    await formsPage.goto();
+
+    await expect(formsPage.submitButton).toBeVisible();
+    await expect(formsPage.submitButton).toBeEnabled();
+  });
+
   test('has no detectable accessibility violations @a11y', async ({ formsPage, a11y }) => {
     await formsPage.goto();
 
