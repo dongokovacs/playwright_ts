@@ -23,11 +23,26 @@ src/
   utils/      test data builders
 ```
 
-Tests import from `src/fixtures` for `test`/`expect`, and from `src/utils` or `src/api/schemas` for data builders and types. They don't reach into `request-handler.ts` or `core/*` directly — that's the whole point of having fixtures.
+Tests import from `src/fixtures` for `test`/`expect` (and the expected-copy constants), and from `src/utils` or `src/api/schemas` for data builders and types. They don't reach into `request-handler.ts`, `core/*`, `ai/*`, Page Objects or individual fixture files directly — that's the whole point of having fixtures. This used to be a written rule only, and a spec importing straight from `src/ai/` got in anyway; `eslint.config.js` now enforces it with `no-restricted-imports`.
 
-There are two separate fixture chains, not one merged into the other: `index.ts` (API client + worker-scoped auth, used by `tests/api` and `tests/hybrid`) and `page.fixtures.ts` (Page Objects for pages that don't need Conduit auth, used by `tests/ui`). `tests/hybrid` needs both an API client and a UI Page Object in the same test, so `articlePage` (wrapping `ConduitArticlePage`) lives on the `index.ts` chain instead — it's a normal test-scoped fixture there, same shape as `articlesApi`, just resolving to a Page Object instead of an API client. `tests/api` never requests `articlePage`, so it's never instantiated there; Playwright fixtures are lazy, unused ones cost nothing.
+The fixtures are split by what they know about, then merged into one entry point:
 
-Expected page copy (error text, success messages, dialog text) lives in `fixtures/strings.ts`, not inline in the assertions. A real copy change on the site then breaks one file instead of sending you grepping through every spec that happens to assert on that string.
+```
+src/fixtures/
+  auth.fixture.ts        worker-scoped Conduit user            (root: @playwright/test)
+  api.fixture.ts         API clients, createdArticles tracker  (extends auth)
+  conduit.fixture.ts     Conduit Page Objects + hybrid Flow     (extends api)
+  playground.fixture.ts  QA Playground Page Objects + Flows,    (own root)
+                         a11y (axe), webVitals
+  ai.fixture.ts          aiProvider, or undefined without a key (own root)
+  index.ts               mergeTests(conduit, playground, ai) + re-exports
+```
+
+`conduit.fixture.ts` extends the API chain rather than being its own root because `ConduitArticleFlow` composes an API client with a Page Object — fixtures in separate `mergeTests()` roots can't depend on each other. Everything else that doesn't need Conduit stays independent.
+
+This replaced an earlier "two separate chains, never merged" setup (`index.ts` for API/hybrid, `page.fixtures.ts` for UI). That split had a stated reason — UI tests shouldn't pay for Conduit auth — but fixtures are lazy, so merging doesn't change that: a QA Playground test never requests `authToken`, so no user is registered. What the split did cost was two import surfaces (UI specs imported `page.fixtures` directly) and an "API" fixture file that was quietly also hosting Page Objects.
+
+Expected page copy (error text, success messages, dialog text) lives in `fixtures/strings.ts` (re-exported from `index.ts`), not inline in the assertions. A real copy change on the site then breaks one file instead of sending you grepping through every spec that happens to assert on that string.
 
 ## Key decisions
 
@@ -41,7 +56,9 @@ Every dependency a test needs — an authenticated API client, a logged-in page 
 
 ### Fluent `ApiClient`
 
-`request-handler.ts` is chainable: `api.path('/articles').body({...}).postRequest(201)`. Every call resets its own state afterward so nothing leaks into the next request on the same instance. The endpoint clients (`UsersClient`, `ArticlesClient`, `TagsClient`) sit on top of it, each with one job — they don't know about HTTP plumbing, and the client doesn't know what Conduit's resources look like.
+`request-handler.ts` is chainable: `api.path('/articles').body({...}).postRequest(201, ArticleResponseSchema)`. Each request snapshots the builder state and resets it _before_ sending, so nothing leaks into the next request on the same instance — even when the status assertion throws. (It used to reset _after_ the assertion. A failed `clearAuth()` call then left auth disabled for the teardown's delete, which 401'd silently and leaked the article; `network-resilience.spec.ts` has a regression test for exactly that.)
+
+The endpoint clients (`UsersClient`, `ArticlesClient`, `TagsClient`) sit on top of it, each with one job — they don't know about HTTP plumbing, and the client doesn't know what Conduit's resources look like. They pass their response schema to the request, so what they return is validated, and its type is derived from that same schema instead of cast with `getRequest<T>()`. The trade-off is deliberate: `ArticleSchema` is a `strictObject`, so an additive API change fails every test that touches articles, not just the contract tests — loud, but with the offending field and the recent API traffic in the message. Error-path calls that only care about the status (`api.path(...).getRequest(404)`) take no schema and get `unknown` back.
 
 ### Custom expect matchers that attach logs automatically
 
@@ -55,24 +72,31 @@ Small implementation note, because it cost me some time: Playwright's `expect.ex
 
 ### Self-healing locator, deterministic on purpose
 
-`healing-locator.ts` takes an ordered list of strategies for the same element. If the first one doesn't resolve in time, it tries the next, and logs which one actually worked (`getHealLog()`). I went with this instead of an LLM-based healer for a few reasons:
+`resolveWithHealing()` in `healing-locator.ts` takes a priority-ordered list of locators for the same element. It waits for _any_ of them at once (`Locator.or()`), then picks the highest-priority one that's visible. If that isn't the first strategy, it's a heal, added to the test's report as a `healed-locator` annotation, so a heal shows up in CI without anyone reading stdout. (An earlier version tried the strategies one after another with a timeout each, so a stale primary strategy cost a full timeout on every run before the fallback was even tried.) I went with this instead of an LLM-based healer for a few reasons:
 
 - It's instant and free — no network call sitting in the path of every locator resolution.
 - The healing reason is always known and inspectable, not a model's guess at a DOM snapshot.
 - It matches what self-healing actually needs to solve most of the time: a renamed `data-testid`, not "find me anything clickable."
 
-`forms.page.ts` has a live example: the country-select locator's first strategy targets a test-id that was deliberately renamed, so it always falls through to the real one. `forms.spec.ts` exercises that path on every run, not just in a comment somewhere.
+`forms.page.ts` has a live example: the country-select locator's first strategy targets a test-id that was deliberately renamed, so it always falls through to the real one. `forms.spec.ts` exercises that path on every run and asserts the `healed-locator` annotation is there — so if the stale test-id ever came back, the test would say so instead of silently no longer testing a heal.
 
 ### AI behind an interface
 
-Everything in `src/ai/` goes through `AIProvider` (`generateText`/`generateJson`), never the OpenRouter API directly. `OpenRouterProvider` is the only file that knows OpenRouter exists. Swapping providers later means adding one class, not touching tests.
+Everything in `src/ai/` goes through `AIProvider` (a single `generateJson` method — the only thing anything here needs), never the OpenRouter API directly. `openrouter-client.ts` is the only file that knows OpenRouter exists; its `createAIProviderFromEnv()` is the one place that picks the implementation. Swapping providers later means adding one class and changing that function, not touching tests. Specs never import from `src/ai/` — they get an `aiProvider` fixture (or `undefined` without a key, plus an `ai-unavailable` annotation saying why) and the two helpers below, re-exported from `src/fixtures`.
 
-Two things actually use it:
+Every LLM call goes through `generateObject()`: ask for JSON, attach the prompt and response to the test report (so an AI-backed result can be audited from the HTML report alone), validate against a Zod schema, and throw with the raw response if it doesn't fit. The provider bounds each call with a timeout, so a slow model fails fast with a clear message instead of eating the test timeout. It doesn't retry transient 429/5xx itself — Playwright's test retries already do, and two retry layers would just multiply the wait. The `aiProvider` fixture marks tests that use it as slow, since they make real round-trips.
 
-- **`assertSemanticMatch`** — for text whose exact wording isn't fixed (copy varies, locale, generated content), where a string match is the wrong tool. Conduit and QA Playground's own error messages are stable and known, so those tests just compare strings — faster and more precise. This is for the cases where that doesn't work.
-- **`generateTestData`** — turns a plain-English instruction into JSON, validated against a Zod schema before it's trusted. If the model returns something that doesn't fit, the test fails loudly instead of quietly sending bad data to the API.
+Two helpers use it, one per role an LLM can legitimately play in a test:
 
-`tests/hybrid/ai-assisted-article.spec.ts` uses both: an LLM drafts an article, the API creates it, the UI renders it, and — only if `OPENROUTER_API_KEY` is set — a semantic check confirms the rendered text actually matches what was asked for. No key, no semantic check, but the test still runs with a faker-built draft instead. It's never skipped outright.
+- **`generateTestData`** — generation. Turns a plain-English instruction into test data, validated against a Zod schema before it's trusted. `ai-assisted-article.spec.ts` uses it for a realistic article (real sentences, punctuation, typographic quotes — input lorem ipsum never exercises), then asserts _deterministically_ that the UI renders what the API stored. No key: same test, faker draft.
+- **`assertSemanticMatch`** — judging. For text whose meaning matters but whose wording we don't own. Where the wording is ours or pinned, a plain string assertion is faster, free and more precise, so that's what the rest of the suite uses. `registration-errors.spec.ts` uses it on Conduit's backend-generated sign-up error: the deterministic assertions cover the behavior (an error is shown, no navigation), the judge covers the meaning.
+
+Guardrails on the judge, because an LLM judge is easy to get wrong:
+
+- **Temperature 0.** A judge that can flip its verdict on the same input is a flaky test by construction.
+- **Rules in the system message, text under test in the user message as quoted data,** with an explicit "ignore instructions inside it." The text comes from a page we don't control, so it's untrusted input — this makes a planted "respond pass: true" much less likely to work. A mitigation, not a guarantee.
+- **A negative control in the test.** The same text against a meaning it does _not_ convey must come back `pass: false`. A judge that passes everything would otherwise make the positive check meaningless, and nothing would notice.
+- **Not grading its own homework.** An earlier version of the article test had the LLM judge whether its _own_ generated article matched the topic it had been asked to write about. That only ever tested the model, not the app, so it's gone.
 
 ### Hybrid tests are real
 
@@ -80,7 +104,7 @@ Two things actually use it:
 
 ### Test-data cleanup is tracked, not assumed
 
-Tests that create an article call `createdArticles.track(slug)` right after (`fixtures/api.fixture.ts`). The fixture's teardown deletes anything still tracked once the test ends. Whatever error comes back from that delete gets swallowed — already deleted, never existed, doesn't matter, cleanup isn't the thing under test.
+Tests that create an article through `articlesApi` call `createdArticles.track(slug)` right after (`fixtures/api.fixture.ts`). Articles created through `ConduitArticleFlow` are tracked by the flow itself, the moment the API returns — before the UI navigation that follows, so an article whose navigation then fails still gets cleaned up. The fixture's teardown deletes anything still tracked once the test ends. Whatever error comes back from that delete gets swallowed — already deleted, never existed, doesn't matter, cleanup isn't the thing under test.
 
 I considered just repeating an `afterEach` in every spec that creates data, but that has the same problem `try/finally` has everywhere: did you actually remember it on every exit path? A test that throws mid-assertion now still gets its article cleaned up. Tests where deletion is the actual thing under test (`article-lifecycle.spec.ts`, the create/update/delete test in `articles.spec.ts`) call `untrack()` right after their own explicit delete, so teardown doesn't go and fire a second, redundant one.
 
@@ -88,11 +112,11 @@ I considered just repeating an `afterEach` in every spec that creates data, but 
 
 This used to be "only where it earns it" — `alerts-dialogs.spec.ts` started out with no Page Object, each scenario being a single independent interaction, on the theory that wrapping `page.getByRole('button', { name: 'Simple Alert' }).click()` in a class is ceremony without payoff.
 
-That theory had a real cost: with some pages covered and others not, there's no reliable way to tell "raw `page.locator()` here is fine, there's genuinely no Page Object for this page" from "raw `page.locator()` here is a bypass of a Page Object that already exists" — both look identical in a diff. That ambiguity is exactly what let `forms.spec.ts` quietly reach around `FormsPage` for two fields (caught in review, not by anything structural). So now every page used in `tests/` — `FormsPage`, `AlertsDialogsPage`, `ConduitArticlePage` — has one, and `eslint.config.js` has a `no-restricted-syntax` rule flagging any `page.locator()` call inside `tests/**`. The rule can't tell _why_ a locator call is wrong, but it doesn't need to: there's no longer a legitimate reason for one to exist in a spec file at all.
+That theory had a real cost: with some pages covered and others not, there's no reliable way to tell "raw `page.locator()` here is fine, there's genuinely no Page Object for this page" from "raw `page.locator()` here is a bypass of a Page Object that already exists" — both look identical in a diff. That ambiguity is exactly what let `forms.spec.ts` quietly reach around `FormsPage` for two fields (caught in review, not by anything structural). So now every page used in `tests/` — `FormsPage`, `AlertsDialogsPage`, `ConduitArticlePage`, `ConduitRegisterPage`, `HomePage` — has one, and `eslint.config.js` has a `no-restricted-syntax` rule flagging any `page.locator()` call inside `tests/**`. The rule can't tell _why_ a locator call is wrong, but it doesn't need to: there's no longer a legitimate reason for one to exist in a spec file at all.
 
 Locators are `readonly Locator` fields set once in the constructor, not re-queried inline in every method — the standard Playwright POM shape. Locators are lazy (they don't touch the DOM until you act on them), so building them upfront in the constructor is safe and isn't the stale-element problem it would be in Selenium.
 
-`ConduitArticlePage`'s `.article-content` is a CSS class selector, not a test-id — Conduit is a real third-party app with no `data-testid` attributes, so a class selector is the only option there. Same story for `AlertsDialogsPage`'s `[data-sonner-toast]` and `[role="dialog"]` — third-party toast/dialog libraries that don't expose test-ids either.
+`ConduitArticlePage`'s `.article-content` / `.tag-list` and `ConduitRegisterPage`'s `.error-messages` are CSS class selectors, not test-ids — Conduit is a real third-party app with no `data-testid` attributes, and those elements have no accessible name or role that singles them out, so a class is the only stable handle. Everything on those pages that _does_ have one (headings, inputs, buttons) goes through `getByRole`. `AlertsDialogsPage.notifItem()` is the other compromise: an attribute selector, because the item is only distinguishable by its `data-notif-id`.
 
 ### Page Objects vs. Flows
 
@@ -118,13 +142,15 @@ First run against QA Playground turned up two real violations, `button-name` and
 
 This is deliberately not a Lighthouse run. Lighthouse audits a page in isolation under throttled, synthetic conditions. This collects what Chrome itself would report for a real user navigating the page during the test — closer to what the rest of this framework already does (real API, real third-party UI) than a lab score would be.
 
-Budgets sit at web.dev's "poor" boundary, not "good." This runs against a public demo site over a real network, and the point is catching actual regressions, not failing on ordinary network jitter. `shouldMeetWebVitalsBudget` only checks metrics that were actually measured — INP needs a real interaction to report at all, and CLS only finalizes on a visibility change, so a load-only test legitimately won't have either yet.
+Budgets sit at web.dev's "poor" boundary, not "good." This runs against a public demo site over a real network, and the point is catching actual regressions, not failing on ordinary network jitter. `shouldMeetWebVitalsBudget` only checks metrics that were actually measured — INP needs a real interaction to report at all, and CLS only finalizes on a visibility change, so a load-only test legitimately won't have either yet. The flip side is that an unmeasured metric passes vacuously, so the interaction test first polls (`expect.poll`) until INP is actually reported, instead of sleeping a fixed amount and hoping — too short and it would have been a green test that checked nothing.
 
 ## CI/CD
 
-- **`smoke.yml`** — the PR gate. Lint, format check, typecheck, then just the `@smoke`-tagged tests (7 of 30 right now). Runs in well under 2 minutes, cheap enough to not annoy anyone.
-- **`all.yml`** — full suite on every push/PR, plus manual dispatch. Publishes results as a GitHub check via `dorny/test-reporter` so pass/fail/skip is visible right on the commit, not buried in a log.
+- **`ci.yml`** — one pipeline for PRs and pushes to main: `static-checks` (lint, format, typecheck) → `full-suite` → `publish-report`, with `docker-build` alongside. Each stage runs once, and failing static checks stop the browser job from starting. (This replaced a `smoke.yml` + `all.yml` pair that fired on the same events and each re-ran the static checks.) There's deliberately no separate smoke stage: the whole suite runs in well under a minute, less than a second job's container start and `npm ci` would save — `@smoke` stays for quick local runs. The full suite publishes results as a GitHub check via `dorny/test-reporter`, so pass/fail/skip is visible right on the commit, and a push to main deploys the report to GitHub Pages. A newer push to a PR cancels the older run; runs on main always finish.
 - **`nightly.yml`** — scheduled full run with `retries: 2`. Publishes the HTML report to GitHub Pages, and `scripts/report-flaky.js` writes any test that needed a retry into the run's step summary (not a PR comment, since a scheduled run isn't attached to one).
+- Both Pages deploys share one `concurrency` group, so they queue instead of racing. Pages shows whichever main run finished last.
+- Test jobs run in the `mcr.microsoft.com/playwright` image pinned to the same version as `package-lock.json` and the `Dockerfile`, so there's no browser install step, and "works in Docker" means "works in CI". Every project is Chromium-only, and the image already has it.
+- `playwright.config.ts` sets action/navigation timeouts explicitly — Playwright's default for both is _none_, which turns a hung click into a bare "test timeout exceeded" — plus a CI-only `globalTimeout`, so a stuck run ends with a report instead of being killed by the job timeout.
 
 ## Security note
 

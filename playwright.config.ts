@@ -13,6 +13,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
+  // A stuck run (both target apps are public, third-party sites) should end
+  // the CI job with a report, not get killed by the job timeout without one.
+  globalTimeout: process.env.CI ? 10 * 60_000 : 0,
   reporter: process.env.CI
     ? [
         ['html', { open: 'never' }],
@@ -25,6 +28,10 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'on-first-retry',
+    // Playwright's default for both is *no* timeout, so a hung click only
+    // surfaces as "Test timeout exceeded" with no hint of which step hung.
+    actionTimeout: 15_000,
+    navigationTimeout: 30_000,
   },
 
   projects: [

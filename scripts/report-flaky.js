@@ -18,7 +18,9 @@ const flaky = [];
 function walk(suite, titlePath) {
   for (const spec of suite.specs ?? []) {
     for (const test of spec.tests ?? []) {
-      if (test.results.length > 1 && test.status === 'expected') {
+      // 'flaky' is the reporter's own status for "failed, then passed on a retry".
+      // (Checking 'expected' here never matched: a retried pass isn't 'expected'.)
+      if (test.status === 'flaky') {
         flaky.push({
           title: [...titlePath, spec.title].join(' › '),
           attempts: test.results.length,

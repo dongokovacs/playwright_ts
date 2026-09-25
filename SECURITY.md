@@ -8,10 +8,10 @@ same basic secret-handling rules a real one would.
 - `.env` is git-ignored. Only `.env.example` (placeholders, no real values)
   is tracked.
 - `OPENROUTER_API_KEY` is the only secret this repo uses, and it's
-  optional everywhere it's read: `createOpenRouterProviderFromEnv()`
-  returns `undefined` if it's unset rather than throwing, and the one test
-  that uses it (`tests/hybrid/ai-assisted-article.spec.ts`, `@ai`) falls
-  back to faker-generated data and just skips the bonus semantic check.
+  optional everywhere it's read: `createAIProviderFromEnv()` returns
+  `undefined` if it's unset rather than throwing, and the `@ai` tests that
+  use it fall back to faker-generated data or skip only their semantic
+  check (the `aiProvider` fixture annotates the test with why).
   Cloning this repo and running the full suite with zero secrets configured
   is a supported path, not a degraded one.
 - No other credentials are required to run the tests: `auth.fixture.ts`

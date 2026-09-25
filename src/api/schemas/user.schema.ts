@@ -1,8 +1,12 @@
 import { z } from 'zod';
 
-// strictObject(): reject unknown fields, same contract-testing philosophy as ArticleSchema
+// strictObject(): reject unknown fields, same contract-testing philosophy as ArticleSchema.
+// `id` is optional because the live API isn't consistent about it: POST /users
+// (register) returns it, POST /users/login doesn't. Strict + optional still
+// fails on any field that isn't one of these.
 export const UserSchema = z.strictObject({
-  email: z.string().email(),
+  id: z.number().int().positive().optional(),
+  email: z.email(),
   token: z.string().min(1),
   username: z.string().min(1),
   bio: z.string().nullable(),

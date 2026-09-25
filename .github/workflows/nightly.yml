@@ -7,23 +7,30 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 jobs:
   full-suite:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Same pinned image as ci.yml: every project in playwright.config.ts is
+    # Chromium-only, and the image already has it — the old
+    # `npx playwright install --with-deps` downloaded all three browsers on
+    # every run for nothing.
+    container:
+      image: mcr.microsoft.com/playwright:v1.61.1-noble
     steps:
+      - name: Mark workspace as a safe git directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
         with:
-          node-version: 20
-          cache: npm
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
 
       - run: npm ci
-      - run: npx playwright install --with-deps
 
       - name: Run full suite
         id: run-tests
@@ -66,6 +73,13 @@ jobs:
     needs: full-suite
     if: always()
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    # Shared with ci.yml's publish-report, so the two never deploy at once.
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

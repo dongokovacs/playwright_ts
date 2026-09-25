@@ -2,7 +2,7 @@
 // Builds the GitHub Pages landing page from README.md, so the framework
 // description on Pages can't drift out of sync with the repo's own README.
 // The Playwright HTML report gets copied alongside it at build time (see
-// .github/workflows/all.yml / nightly.yml) so the landing page can link to
+// .github/workflows/ci.yml / nightly.yml) so the landing page can link to
 // ./report/ as a relative path within the same Pages deploy.
 const fs = require('node:fs');
 const path = require('node:path');

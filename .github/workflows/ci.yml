@@ -1,4 +1,14 @@
-name: All Tests
+name: CI
+
+# One pipeline for PRs and pushes to main (replaced a smoke.yml + all.yml
+# pair that fired on the same events and each re-ran the static checks):
+#
+#   static-checks ──► full-suite ──► publish-report (push only)
+#   docker-build (independent)
+#
+# No separate smoke stage: the full suite runs in well under a minute, less
+# than a second job's container start + npm ci would save. `npm run
+# test:smoke` stays for quick local runs.
 
 on:
   pull_request:
@@ -9,23 +19,45 @@ on:
 
 permissions:
   contents: read
-  checks: write
-  pages: write
-  id-token: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # A new push to a PR supersedes the old run; runs on main always finish,
+  # so every main commit gets its own result and report.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  full-suite:
+  static-checks:
     runs-on: ubuntu-latest
-    # Pinned to the same Playwright version as package.json/Dockerfile —
-    # browsers and their OS deps are already baked in here, so there's no
-    # "Install Playwright browsers" step below.
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run typecheck
+
+  full-suite:
+    needs: static-checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      checks: write
+    # Pinned to the same Playwright version as package-lock.json/Dockerfile —
+    # browsers and their OS deps are baked in, so no install step.
     container:
       image: mcr.microsoft.com/playwright:v1.61.1-noble
-    timeout-minutes: 15
     steps:
       # Container jobs run as a different UID than the one that owns the
-      # runner's checked-out workspace, so git refuses to touch it
-      # ("detected dubious ownership") unless it's explicitly trusted first.
+      # checked-out workspace, so git refuses to touch it ("detected dubious
+      # ownership") unless it's explicitly trusted first.
       - name: Mark workspace as a safe git directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
@@ -38,10 +70,6 @@ jobs:
           key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
 
       - run: npm ci
-
-      - run: npm run lint
-      - run: npm run format:check
-      - run: npm run typecheck
 
       - name: Run full suite
         run: npm test
@@ -81,8 +109,19 @@ jobs:
 
   publish-report:
     needs: full-suite
-    if: always() && github.event_name == 'push'
+    # Publish a red run's report too (that's when it's most useful), but not
+    # when full-suite never ran (static checks failed) — no artifact then.
+    if: >-
+      always() && github.event_name == 'push' &&
+      (needs.full-suite.result == 'success' || needs.full-suite.result == 'failure')
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    # Shared with nightly.yml so the two deploys queue instead of racing.
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -90,3 +129,11 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  docker-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -t playwright-ts-portfolio .

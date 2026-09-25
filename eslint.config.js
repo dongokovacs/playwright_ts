@@ -54,6 +54,40 @@ module.exports = tseslint.config(
             'page.locator() in a spec file — use a Page Object method instead. If no Page Object exists for this page yet, add one rather than reaching for a raw locator here.',
         },
       ],
+      // "Tests only import from src/fixtures (plus src/utils and
+      // src/api/schemas)" used to be a written rule only — and a spec
+      // importing straight from src/ai/ got in anyway. Now it's checked.
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@playwright/test',
+              message:
+                'Import test/expect from src/fixtures — the custom matchers and fixtures live there.',
+            },
+          ],
+          patterns: [
+            {
+              // A deny-list, not "src/** except …": gitignore-style
+              // negation can't re-include a path under an excluded dir.
+              group: [
+                '**/src/ai/**',
+                '**/src/config/**',
+                '**/src/core/**',
+                '**/src/expects/**',
+                '**/src/flows/**',
+                '**/src/pages/**',
+                '**/src/api/*.client',
+                '**/src/api/request-handler',
+                '**/src/fixtures/*',
+              ],
+              message:
+                'Specs import from src/fixtures (plus src/utils and src/api/schemas) only. Need something else? Expose it through a fixture.',
+            },
+          ],
+        },
+      ],
     },
   },
 );

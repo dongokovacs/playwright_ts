@@ -6,7 +6,7 @@ This is a portfolio repo, but I built it the way I'd want a team's suite structu
 
 Explore before you generate. Before writing a single locator, look at the actual rendered page instead of guessing from a description — run `npx playwright codegen <url>` (or drive the page with an MCP browser tool) and read off the real accessible roles, labels, and test-ids that exist in the DOM. This applies whether a human or an AI assistant is writing the Page Object: a locator that looks plausible but doesn't match the real DOM (wrong role name, guessed test-id, slightly-off text) is the most common way a new Page Object breaks on its first CI run, and it's avoidable for free just by checking first.
 
-Prefer selectors in this order: `getByRole()` > `getByLabel()` > `getByPlaceholder()` > `getByText()` > `getByTestId()`. Drop to a CSS class or ARIA-role selector only when the page is third-party and has no `data-testid` to reach for — `ConduitArticlePage`'s `.article-content` and `AlertsDialogsPage`'s `[data-sonner-toast]`/`[role="dialog"]` are the existing examples of that compromise, not something to reach for by default.
+Prefer selectors in this order: `getByRole()` > `getByLabel()` > `getByPlaceholder()` > `getByText()` > `getByTestId()`. Drop to a CSS class or ARIA-role selector only when the page is third-party and has no `data-testid` to reach for — `ConduitArticlePage`'s `.article-content` and `ConduitRegisterPage`'s `.error-messages` are the existing examples of that compromise, not something to reach for by default.
 
 One Page Object per page used in `tests/`, in `src/pages/`. Locators are `readonly Locator` fields built once in the constructor. They're lazy in Playwright, so this doesn't touch the DOM early — not the stale-element problem it'd be in Selenium. Methods are single-step, page-level actions: `fillEmail`, `selectGender`, `submit`. Not multi-step flows, see below.
 
@@ -26,20 +26,24 @@ Assertions stay in the test. A flow does things — create, navigate, delete —
 
 One client per resource in `src/api/`, built on an `ApiClient` instance. It doesn't know about HTTP plumbing — that's `request-handler.ts`'s job — and `request-handler.ts` doesn't know what any resource looks like. `tags.client.ts` is the smallest example, `articles.client.ts` the one with full CRUD.
 
-Response shapes go in `src/api/schemas/*.schema.ts` as Zod schemas. Derive the TypeScript type with `z.infer<typeof Schema>` instead of writing it by hand, so there's one definition instead of two that can drift. `z.strictObject()` if unknown fields should fail validation, `z.object()` if you only care about a subset of the response.
+Response shapes go in `src/api/schemas/*.schema.ts` as Zod schemas. Derive the TypeScript type with `z.infer<typeof Schema>` instead of writing it by hand, so there's one definition instead of two that can drift — that goes for request payloads too (`CreateArticlePayloadSchema`). `z.strictObject()` if unknown fields should fail validation, `z.object()` if you only care about a subset of the response. Check the schema against a real response before trusting it: `UserSchema` was strict and missing the `id` that registration returns, which went unnoticed only because nothing validated user responses yet.
+
+Client methods pass the schema to the request — `.getRequest(200, TagsResponseSchema)` — rather than a type argument. The response is then validated and the return type derived from the schema; `getRequest<T>()`-style casts no longer exist.
 
 Need to assert against an error status the client doesn't model yet — a 404, a 401? Don't bolt on a one-off `*ExpectingError` method unless that error is genuinely part of the resource's contract (the way `UsersClient.registerExpectingError` is, for validation errors real users hit). Otherwise just reach for the `api` fixture directly: `api.path(...).clearAuth().getRequest(404)`. `tests/api/network-resilience.spec.ts` does this. Keeps the client's surface matching what the resource actually promises, not every status code some test ever wanted to check once.
 
 ## Adding a fixture
 
-Two fixture chains, not one merged chain:
+Put it in the file for what it knows about (the full map is in ARCHITECTURE.md → Layering):
 
-- `src/fixtures/api.fixture.ts` (exported via `index.ts`) — anything needing a Conduit auth token or an API client. `tests/api` and `tests/hybrid` use this.
-- `src/fixtures/page.fixtures.ts` — UI-only Page Objects and Flows, no Conduit auth involved. `tests/ui` uses this.
+- needs a Conduit user or API client → `api.fixture.ts`
+- a Conduit Page Object or a Flow mixing API + UI → `conduit.fixture.ts`
+- a QA Playground Page Object/Flow, or a check run against it (a11y, performance) → `playground.fixture.ts`
+- anything AI → `ai.fixture.ts`
 
-If a fixture depends on another one in the same chain — `articleFlow` needs `articlesApi` and `articlePage` — just destructure that dependency in the factory. Playwright resolves the graph; you don't order anything manually. Cleanup goes after the `await use(...)` call in the same factory. `createdArticles` in `api.fixture.ts` is the pattern: track a resource while the test runs, delete whatever's left once it's done.
+Prefer adding to an existing file over creating a new one. `index.ts` merges them with `mergeTests()`, and specs import only from there. A genuinely new fixture file becomes a new root in that `mergeTests()` call. If a fixture needs one from another root, it has to extend that root's chain instead (the way `conduit.fixture.ts` extends `api.fixture.ts`) — separate roots can't depend on each other.
 
-`tests/hybrid` needs both an API client and a UI Page Object in the same test. Rather than merge the two chains for that, `articlePage` just lives on the `api.fixture.ts` chain as an ordinary fixture — same shape as `articlesApi`, it just resolves to a Page Object.
+If a fixture depends on another one in the same chain — `articleFlow` needs `articlesApi` and `articlePage` — just destructure that dependency in the factory. Playwright resolves the graph; you don't order anything manually. Cleanup goes after the `await use(...)` call in the same factory. `createdArticles` in `api.fixture.ts` is the pattern: track a resource while the test runs, delete whatever's left once it's done. Fixtures are lazy, so a new one costs nothing for tests that don't ask for it.
 
 ## Adding a custom matcher
 
@@ -51,11 +55,11 @@ Don't forget to extend the `Matchers<R, T>` interface at the bottom of the file 
 
 A `@tag` in the title — test-level for one-offs, `describe`-level when it covers the whole file — is what `--grep` selects on. Current ones:
 
-- `@smoke` — the PR gate. Keep this list short on purpose, it's meant to be fast and broad, not exhaustive.
+- `@smoke` — a fast, broad subset for quick local runs (CI runs the full suite). Keep this list short on purpose.
 - `@a11y` — accessibility checks (axe-core).
 - `@perf` — Core Web Vitals budgets.
 - `@resilience` — network failures, timeouts, error responses.
 - `@negative` — data-driven input validation (boundary cases, bad input).
-- `@ai` — the test that calls a real LLM. Worth its own tag since it's the only one with an external paid dependency and non-deterministic output; some teams would want to exclude it from a default run, or run it on its own to watch for drift.
+- `@ai` — tests that call a real LLM (through the `aiProvider` fixture) when `OPENROUTER_API_KEY` is set. Worth their own tag since they're the only ones with an external paid dependency and model-dependent behavior; some teams would want to exclude them from a default run, or run them on their own to watch for drift. Without a key they still run their non-AI part.
 
 Each tag has its own `npm run test:<tag>` script. Adding a new category of test that doesn't fit an existing tag? Add the tag and the script together, not the tag now and the script "later."

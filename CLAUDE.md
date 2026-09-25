@@ -16,7 +16,9 @@ a checklist, not a replacement for them.
 - **Tests only import from `src/fixtures`** (plus `src/utils` / `src/api/schemas`
   for data builders and types). Never import `test`/`expect` from
   `@playwright/test` directly in a spec, and never reach into
-  `request-handler.ts` or `core/*` from a test.
+  `request-handler.ts`, `core/*`, `ai/*`, Page Objects or an individual
+  `*.fixture.ts` from a test. Enforced by `no-restricted-imports` in
+  `eslint.config.js`. Need something new in a spec? Expose it as a fixture.
 - **Every page used in `tests/` gets a Page Object.** One page, one class,
   `readonly Locator` fields built once in the constructor. Locators are
   public for callers to act on directly; only add a method where there's
@@ -28,12 +30,18 @@ a checklist, not a replacement for them.
   in the Flow.
 - **API response shapes are Zod schemas** in `src/api/schemas/*.schema.ts`.
   Derive the TS type with `z.infer<typeof Schema>` — never hand-write a type
-  next to a schema that can drift from it.
-- **Any new LLM use case goes through `AIProvider`** (`generateText` /
-  `generateJson`), never a provider SDK/API directly from a test or fixture.
-  `OpenRouterProvider` is the only file allowed to know OpenRouter exists.
-  AI-backed helpers must degrade gracefully when `OPENROUTER_API_KEY` is
-  unset — never make a test hard-fail or hang for lack of a key.
+  next to a schema that can drift from it. Clients pass the schema to the
+  request (`.getRequest(200, Schema)`) so responses are validated, not cast.
+- **Any new LLM use case goes through `AIProvider`** (`generateJson`),
+  never a provider SDK/API directly from a test or fixture.
+  `openrouter-client.ts` is the only file allowed to know OpenRouter exists.
+  Structured calls go through `generateObject()` (Zod-validated, attached to
+  the report); specs reach AI only via the `aiProvider` fixture and the
+  helpers re-exported from `src/fixtures`. AI-backed helpers
+  must degrade gracefully when `OPENROUTER_API_KEY` is unset — never make a
+  test hard-fail or hang for lack of a key. An LLM judge runs at temperature
+  0 and gets a negative control in the test; it never grades text the same
+  LLM generated in that test.
 - **No hard waits.** No `waitForTimeout()`. Use web-first assertions
   (`expect(locator).toBeVisible()`, etc.) or `expect.poll()` where a
   condition genuinely needs polling (see the dialog-handling notes in
@@ -57,7 +65,7 @@ real page first, then write locators against what's actually there:
 2. Prefer, in order: `getByRole()` > `getByLabel()` > `getByPlaceholder()` >
    `getByText()` > `getByTestId()`. Fall back to a CSS class or ARIA role
    selector only for third-party pages with no `data-testid` (see
-   `ConduitArticlePage`, `AlertsDialogsPage` for real examples of that
+   `ConduitArticlePage`, `ConduitRegisterPage` for real examples of that
    compromise, and why).
 3. Only then write the Page Object's constructor locators.
 

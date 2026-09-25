@@ -1,7 +1,6 @@
 # Playwright TS Test Automation Portfolio
 
-[![CI](https://github.com/dongokovacs/playwright_ts/actions/workflows/smoke.yml/badge.svg)](https://github.com/dongokovacs/playwright_ts/actions/workflows/smoke.yml)
-[![All Tests](https://github.com/dongokovacs/playwright_ts/actions/workflows/all.yml/badge.svg)](https://github.com/dongokovacs/playwright_ts/actions/workflows/all.yml)
+[![CI](https://github.com/dongokovacs/playwright_ts/actions/workflows/ci.yml/badge.svg)](https://github.com/dongokovacs/playwright_ts/actions/workflows/ci.yml)
 [![Nightly Full Suite](https://github.com/dongokovacs/playwright_ts/actions/workflows/nightly.yml/badge.svg)](https://github.com/dongokovacs/playwright_ts/actions/workflows/nightly.yml)
 
 A Playwright + TypeScript framework built to show how I'd actually architect a test suite at a senior level, not just how I'd write individual tests.
@@ -13,9 +12,9 @@ Written with an AI assistant's help (docs included), but every architectural dec
 ## What this is meant to show
 
 - **Framework architecture** — fixture-based dependency injection, a fluent API client, custom expect matchers that attach failure context automatically, a deterministic self-healing locator with a heal log you can actually inspect, and a Page Object / Flow split (pages know one screen, flows know a business use case built from several).
-- **AI integration** — an `AIProvider` interface (OpenRouter behind it) used for two things: semantic assertions on text that isn't fixed-wording, and Zod-validated AI-generated test data. Nothing calls the API directly from a test.
+- **AI integration** — an `AIProvider` interface (OpenRouter behind it), reached from tests only through an `aiProvider` fixture, used in the two roles an LLM can legitimately play in a test: generating Zod-validated test data, and judging the meaning of copy we don't own — at temperature 0, prompt-injection-aware, with a negative control. Every prompt/response pair lands in the HTML report.
 - **Hybrid API + UI testing** — write through the API, verify through the real UI, and back. Testing-pyramid thinking instead of E2E-for-everything.
-- **CI/CD that's actually set up properly** — a fast `@smoke` PR gate, a full suite that publishes results as a GitHub check, and a nightly run with a published report and flaky-test detection.
+- **CI/CD that's actually set up properly** — one staged pipeline (static checks → full suite, published as a GitHub check and to Pages), and a nightly run with flaky-test detection.
 
 ## Target applications
 
@@ -40,7 +39,7 @@ cp .env.example .env   # optional — only needed if you want OPENROUTER_API_KEY
 ```
 
 ```bash
-npm run test:smoke    # fast subset, same as the PR gate
+npm run test:smoke    # fast subset for quick local runs
 npm run test:api      # API suite against Conduit
 npm run test:ui       # UI suite against QA Playground
 npm run test:hybrid   # hybrid API+UI suite against Conduit
@@ -48,11 +47,11 @@ npm run test:a11y     # accessibility checks (axe-core), grep @a11y
 npm run test:perf     # Core Web Vitals budgets, grep @perf
 npm run test:resilience # network failure / error-path tests, grep @resilience
 npm run test:negative  # data-driven input validation tests, grep @negative
-npm run test:ai        # the AI-assisted hybrid test, grep @ai
+npm run test:ai        # the LLM-backed hybrid tests, grep @ai
 npm test               # everything
 ```
 
-No credentials needed for any of this. A Conduit test user gets registered per worker automatically (`src/fixtures/auth.fixture.ts`). `OPENROUTER_API_KEY` is optional — without it, the AI-assisted hybrid test just falls back to faker data and skips the bonus semantic check. The test itself still runs and reports.
+No credentials needed for any of this. A Conduit test user gets registered per worker automatically (`src/fixtures/auth.fixture.ts`). `OPENROUTER_API_KEY` is optional — without it, the `@ai` tests fall back to faker data or skip only their semantic check, and say so in a test annotation. The tests themselves still run and report.
 
 ### Running with Docker
 

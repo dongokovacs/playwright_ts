@@ -30,8 +30,13 @@ export const ArticlesListResponseSchema = z.object({
   articlesCount: z.number().int().nonnegative(),
 });
 
-/** Shape an AI-generated (or hand-built) article draft must satisfy before it's sent to the create endpoint. */
-export const ArticleDraftSchema = z.object({
+/**
+ * The create-article request body — what an AI-generated or faker-built
+ * article must satisfy before it's sent. Note the API normalizes tagList on
+ * write (lowercases and de-duplicates it), so assert rendered tags against
+ * the *stored* article's tagList, not this payload's.
+ */
+export const CreateArticlePayloadSchema = z.object({
   title: z.string().min(1).max(120),
   description: z.string().min(1).max(200),
   body: z.string().min(1),
@@ -41,4 +46,4 @@ export const ArticleDraftSchema = z.object({
 export type Article = z.infer<typeof ArticleSchema>;
 export type ArticleResponse = z.infer<typeof ArticleResponseSchema>;
 export type ArticlesListResponse = z.infer<typeof ArticlesListResponseSchema>;
-export type ArticleDraft = z.infer<typeof ArticleDraftSchema>;
+export type CreateArticlePayload = z.infer<typeof CreateArticlePayloadSchema>;
