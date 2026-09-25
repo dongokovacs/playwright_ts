@@ -35,7 +35,7 @@ test.describe('Hybrid + AI: AI-drafted article lifecycle @ai', () => {
     createdArticles.track(slug);
     await expect(articlePage.heading(draft.title)).toBeVisible();
 
-    console.log(draft);
+    console.log('draft:', draft);
 
     if (aiProvider) {
       // Wait for the body text itself, not just the heading, or this races
