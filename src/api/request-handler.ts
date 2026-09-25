@@ -2,8 +2,22 @@ import type { APIRequestContext, APIResponse } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 import { APILogger } from '../core/logger';
 
+type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
+
+type RequestSnapshot = {
+  path: string;
+  params: Record<string, string | number>;
+  headers: Record<string, string>;
+  body: unknown;
+  authDisabled: boolean;
+};
+
 // Chainable HTTP client the endpoint clients build on. Each request method
-// resets path/params/headers/body afterward so state can't leak between calls.
+// snapshots path/params/headers/body and resets them *before* sending, so
+// state can't leak into the next call — not even when the status assertion
+// throws. (It used to reset after the assertion; a failed clearAuth() call
+// then left auth disabled for the fixture teardown's delete, which 401'd
+// silently and leaked the article.)
 export class ApiClient {
   private requestPath = '';
   private queryParams: Record<string, string | number> = {};
@@ -44,78 +58,70 @@ export class ApiClient {
   }
 
   async getRequest<T = unknown>(expectedStatus: number): Promise<T> {
-    return test.step(`GET ${this.requestPath}`, async () => {
-      const url = this.buildUrl();
-      const headers = this.buildHeaders();
-      this.logger.logRequest('GET', url, headers);
-
-      const response = await this.request.get(url, { headers });
-      const json = await this.parseBody(response);
-      this.logger.logResponse(response.status(), json);
-      expect(response.status(), this.logger.getRecentLogs()).toBe(expectedStatus);
-
-      this.cleanUpFields();
-      return json as T;
-    });
+    return this.send('GET', expectedStatus) as Promise<T>;
   }
 
   async postRequest<T = unknown>(expectedStatus: number): Promise<T> {
-    return test.step(`POST ${this.requestPath}`, async () => {
-      const url = this.buildUrl();
-      const headers = this.buildHeaders();
-      this.logger.logRequest('POST', url, headers, this.requestBody);
-
-      const response = await this.request.post(url, { headers, data: this.requestBody });
-      const json = await this.parseBody(response);
-      this.logger.logResponse(response.status(), json);
-      expect(response.status(), this.logger.getRecentLogs()).toBe(expectedStatus);
-
-      this.cleanUpFields();
-      return json as T;
-    });
+    return this.send('POST', expectedStatus) as Promise<T>;
   }
 
   async putRequest<T = unknown>(expectedStatus: number): Promise<T> {
-    return test.step(`PUT ${this.requestPath}`, async () => {
-      const url = this.buildUrl();
-      const headers = this.buildHeaders();
-      this.logger.logRequest('PUT', url, headers, this.requestBody);
+    return this.send('PUT', expectedStatus) as Promise<T>;
+  }
 
-      const response = await this.request.put(url, { headers, data: this.requestBody });
+  async deleteRequest(expectedStatus: number): Promise<void> {
+    await this.send('DELETE', expectedStatus);
+  }
+
+  private async send(method: HttpMethod, expectedStatus: number): Promise<unknown> {
+    const snapshot = this.takeSnapshot();
+
+    return test.step(`${method} ${snapshot.path}`, async () => {
+      const url = this.buildUrl(snapshot);
+      const headers = this.buildHeaders(snapshot);
+      const hasBody = method === 'POST' || method === 'PUT';
+      this.logger.logRequest(method, url, headers, hasBody ? snapshot.body : undefined);
+
+      const response = await this.request.fetch(url, {
+        method,
+        headers,
+        ...(hasBody ? { data: snapshot.body } : {}),
+      });
       const json = await this.parseBody(response);
       this.logger.logResponse(response.status(), json);
       expect(response.status(), this.logger.getRecentLogs()).toBe(expectedStatus);
 
-      this.cleanUpFields();
-      return json as T;
+      return json;
     });
   }
 
-  async deleteRequest(expectedStatus: number): Promise<void> {
-    return test.step(`DELETE ${this.requestPath}`, async () => {
-      const url = this.buildUrl();
-      const headers = this.buildHeaders();
-      this.logger.logRequest('DELETE', url, headers);
-
-      const response = await this.request.delete(url, { headers });
-      this.logger.logResponse(response.status());
-      expect(response.status(), this.logger.getRecentLogs()).toBe(expectedStatus);
-
-      this.cleanUpFields();
-    });
+  private takeSnapshot(): RequestSnapshot {
+    const snapshot: RequestSnapshot = {
+      path: this.requestPath,
+      params: this.queryParams,
+      headers: this.extraHeaders,
+      body: this.requestBody,
+      authDisabled: this.authDisabled,
+    };
+    this.requestPath = '';
+    this.queryParams = {};
+    this.extraHeaders = {};
+    this.requestBody = undefined;
+    this.authDisabled = false;
+    return snapshot;
   }
 
-  private buildUrl(): string {
-    const url = new URL(this.baseUrl + this.requestPath);
-    for (const [key, value] of Object.entries(this.queryParams)) {
+  private buildUrl(snapshot: RequestSnapshot): string {
+    const url = new URL(this.baseUrl + snapshot.path);
+    for (const [key, value] of Object.entries(snapshot.params)) {
       url.searchParams.set(key, String(value));
     }
     return url.toString();
   }
 
-  private buildHeaders(): Record<string, string> {
-    const headers: Record<string, string> = { ...this.extraHeaders };
-    if (!this.authDisabled && this.authToken) {
+  private buildHeaders(snapshot: RequestSnapshot): Record<string, string> {
+    const headers: Record<string, string> = { ...snapshot.headers };
+    if (!snapshot.authDisabled && this.authToken) {
       headers.Authorization = this.authToken;
     }
     return headers;
@@ -129,13 +135,5 @@ export class ApiClient {
     } catch {
       return text;
     }
-  }
-
-  private cleanUpFields(): void {
-    this.requestPath = '';
-    this.queryParams = {};
-    this.extraHeaders = {};
-    this.requestBody = undefined;
-    this.authDisabled = false;
   }
 }

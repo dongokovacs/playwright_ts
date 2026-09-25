@@ -1,5 +1,6 @@
 import type { ZodType, z } from 'zod';
 import type { AIProvider } from './ai-provider';
+import { attachAIExchange } from './attach-exchange';
 
 // Turns a plain-English instruction into a JSON object and validates it
 // against the schema before returning. If the model returns garbage, this
@@ -15,6 +16,7 @@ export async function generateTestData<TSchema extends ZodType>(
   ].join('\n');
 
   const raw = await provider.generateJson(prompt);
+  await attachAIExchange('test-data', prompt, raw);
   const result = schema.safeParse(raw);
 
   if (!result.success) {

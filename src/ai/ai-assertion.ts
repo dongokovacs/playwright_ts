@@ -1,4 +1,5 @@
 import type { AIProvider } from './ai-provider';
+import { attachAIExchange } from './attach-exchange';
 
 export type SemanticMatchResult = {
   pass: boolean;
@@ -24,7 +25,10 @@ export async function assertSemanticMatch(
     `EXPECTED MEANING: ${JSON.stringify(expectedMeaning)}`,
   ].join('\n');
 
-  const raw = await provider.generateJson(prompt);
+  // temperature 0: a judge that can flip its verdict between runs on the
+  // same input is a flaky test by construction.
+  const raw = await provider.generateJson(prompt, { temperature: 0 });
+  await attachAIExchange('semantic-assertion', prompt, raw);
 
   if (
     typeof raw === 'object' &&
